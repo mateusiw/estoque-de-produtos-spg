@@ -58,6 +58,17 @@ body{margin:0;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Ar
 html.dialog-open,body.dialog-open{overflow:hidden}
 button,input,select{font:inherit;color:inherit}
 ::selection{background:var(--brand-soft-strong)}
+/* Já tentamos fazer .shell (em vez da página) ser o container de scroll,
+   com a barra do topo em position:fixed — na teoria evitava o sticky
+   duplo (ver histórico), mas na prática criou um bug PERSISTENTE pior: o
+   cabeçalho da tabela (thead) passou a grudar solto entre as linhas do
+   corpo (não só durante o scroll — ficava errado até parar de rolar).
+   Reverdido. NÃO repetir essa combinação (.shell com overflow-y:auto +
+   .sticky-head position:fixed) sem resolver isso primeiro. Voltamos pro
+   esquema original: página inteira rola, .sticky-head e o thead da
+   tabela são dois position:sticky (ver logo abaixo) — tem uma tremulação
+   de vídeo conhecida e cosmética durante rolagem rápida (soma sozinha ao
+   parar), mas é o estado mais estável testado até agora. */
 .shell{max-width:min(2200px,98vw);margin:auto;padding:24px 28px 60px}
 body.auth-locked .shell{display:none}
 body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
@@ -141,6 +152,12 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 .cloud-badge.online .dot{background:#1fae5c}
 .cloud-badge.error .dot{background:#e5484d}
 #cloudText{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Botão de corrigir zoom (ver initZoomFix, JS) — só aparece quando a tela
+   tem escala fracionária (125%/150%...). Fica destacado (cor da marca)
+   enquanto o ajuste está ativo, igual um interruptor ligado/desligado. */
+#zoomFixBtn.active{background:var(--brand-soft);border-color:var(--brand-soft-strong);color:var(--brand-dark)}
+:root[data-theme="dark"] #zoomFixBtn.active{color:var(--brand-light)}
+@media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) #zoomFixBtn.active{color:var(--brand-light)}}
 
 /* Location + sub tabs */
 .location-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
@@ -217,6 +234,14 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 @media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .ms-only{color:var(--brand-light)}}
 .multiselect-option:hover .ms-only{display:inline-block}
 .multiselect-empty{padding:12px;text-align:center;color:var(--muted);font-size:13px;margin:0}
+/* Busca dentro do painel de opções (Produto/Classe podem ter dezenas de
+   itens — rolar a lista inteira pra achar um específico é lento). Só
+   filtra a lista já renderizada (mostra/esconde via [hidden]), sem
+   re-render nem chamar onChange — mantém o estado dos checkboxes e o
+   foco no campo intactos enquanto digita. */
+.ms-search{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2)}
+.ms-search svg{width:15px;height:15px;flex:none;color:var(--muted)}
+.ms-search input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:13px;color:var(--ink)}
 /* Combo (texto livre + painel de sugestões estilizado) — usado em Classe
    e Tipo do produto no lugar do <datalist>/<select> nativo, que muda de
    cara sem controle dependendo do navegador/SO e sempre fica com a cara
@@ -238,13 +263,21 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 /* Table */
 /* Sem "overflow" nenhum aqui (nem x nem y) — qualquer overflow!=visible
    nesse container, mesmo só no eixo horizontal, faz o Chrome tratá-lo como
-   "ancestral com scroll" pro thead sticky lá dentro (mesmo com
-   overflow-y:visible, testado e continuou quebrando: o cabeçalho grudava
-   numa posição solta no meio das linhas em vez de colado embaixo do menu
-   fixo). Tirando o overflow daqui, o sticky sempre gruda certo na janela;
-   como troca, uma tabela mais larga que a tela agora rola a PÁGINA INTEIRA
-   na horizontal (não só a tabela) — é o preço de garantir o cabeçalho
-   fixo funcionando de verdade. */
+   "ancestral com scroll" pro thead sticky lá dentro. Já tentado: 1)
+   overflow-x:auto sozinho (overflow-y:visible) — quebra, por spec um eixo
+   "visible" ao lado de outro que não é vira os DOIS "auto" sem avisar; 2)
+   overflow-x:auto + overflow-y:clip (achando que "clip" escaparia da regra
+   acima por não ser oficialmente um "scroll container") — quebra do mesmo
+   jeito na prática: cabeçalho passa a grudar solto no meio das linhas
+   (mesmo sintoma de sempre) em vez de ficar embaixo do menu fixo da
+   página. Tirando o overflow daqui de vez, o sticky sempre gruda certo na
+   janela; como troca, uma tabela mais larga que a tela agora rola a
+   PÁGINA INTEIRA na horizontal (não só a tabela) — é o preço de garantir
+   o cabeçalho fixo funcionando de verdade. Pra diminuir a frequência
+   disso (comum em telas com escala do Windows fracionária, 125%/150%,
+   onde a largura útil da janela em pixels é menor), ver as regras de
+   compactação em @media mais abaixo, que encolhem fonte/padding da
+   tabela em vez de depender de rolagem horizontal. */
 .table-scroll{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-md);scrollbar-color:var(--brand-soft-strong) transparent;margin-bottom:24px}
 /* border-collapse:separate (com border-spacing:0) em vez de collapse — o
    Chrome/Edge tem um bug antigo e conhecido: position:sticky em <th>
@@ -296,6 +329,30 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 .prod-table tbody tr:last-child td:last-child{border-bottom-right-radius:18px}
 .prod-table .empty-row{text-align:center;color:var(--muted);padding:28px 12px;cursor:default}
 .prod-table .empty-row:hover{background:transparent}
+/* Compacta fonte/padding/largura das colunas em janelas mais estreitas —
+   como o cabeçalho sticky exige que a tabela nunca tenha "overflow"
+   próprio (ver comentário em .table-scroll acima), uma tabela larga
+   demais pra caber na largura da janela acaba rolando a PÁGINA INTEIRA
+   na horizontal, arrastando topbar/filtros/KPIs junto — o que aparece
+   com mais frequência em telas com escala do Windows fracionária
+   (125%/150%), que reduzem a largura útil da janela em pixels CSS pro
+   mesmo monitor físico. Encolhendo a tabela (não o resto da página) nessa
+   faixa de largura, ela passa a caber sem precisar rolar bem mais vezes.
+   Os dois breakpoints abaixo foram escolhidos pra bater com a largura
+   efetiva de monitores comuns (1920×1080 e 1366×768) nessas escalas, não
+   é um breakpoint "de dispositivo" qualquer. */
+@media(max-width:1600px){
+  .prod-table{font-size:12.5px}
+  .prod-table thead th{padding:9px 9px}
+  .prod-table tbody td{padding:8px 9px;max-width:170px}
+  .prod-table .col-strong{max-width:210px}
+}
+@media(max-width:1280px){
+  .prod-table{font-size:11.5px;min-width:720px}
+  .prod-table thead th{padding:8px 7px}
+  .prod-table tbody td{padding:6px 7px;max-width:140px}
+  .prod-table .col-strong{max-width:180px}
+}
 /* Etiqueta "fulano mexendo aqui agora" (estilo Planilhas Google) — some
    sozinha (fica vazia) quando ninguém mais está no registro, ver
    atualizarBadgesDom(). animação leve pra chamar atenção sem piscar
@@ -694,6 +751,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <button type="button" class="btn btn-icon-only" id="undoBtn" title="Desfazer (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
       <button type="button" class="btn btn-icon-only" id="redoBtn" title="Refazer (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
       <div class="cloud-badge" id="cloudBadge"><span class="dot"></span><span id="cloudText">Conectando…</span></div>
+      <button type="button" class="btn btn-icon-only" id="zoomFixBtn" hidden title="Sua tela parece estar com escala/zoom do Windows fracionado (ex.: 125%, 150%) — isso pode deixar a tabela com colunas levemente desalinhadas. Clique pra ajustar o zoom da página automaticamente e corrigir."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
       <button type="button" class="btn btn-icon-only" id="themeBtn" title="Alternar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
     </div>
     <div class="actions">
@@ -1239,7 +1297,10 @@ function toggleMultiselect(id){
   closeAllMultiselects();
   if(!wasOpen){
     openMultiselects.add(id);
-    document.getElementById(id).classList.add('open');
+    const root=document.getElementById(id);
+    root.classList.add('open');
+    const searchInput=root.querySelector('.ms-search-input');
+    if(searchInput)setTimeout(()=>searchInput.focus(),0);
   }
 }
 function multiselectHtml(id,allLabel,options,selected){
@@ -1254,9 +1315,14 @@ function multiselectHtml(id,allLabel,options,selected){
       <input type="checkbox"${selSet.has(opt)?' checked':''}><span class="ms-check"></span><span class="ms-text">${esc(opt)}</span>
       <button type="button" class="ms-only">Somente</button>
     </label>`).join('');
+  /* Só mostra a busca quando a lista é grande o bastante pra rolar ser
+     incômodo (Classe/Produto costumam ter dezenas de itens; Status/
+     Destino são listas curtas e fixas, não precisam disso). */
+  const searchHtml=options.length>7?`<div class="ms-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="text" class="ms-search-input" autocomplete="off" placeholder="Buscar..."></div>`:'';
   return `<div class="multiselect${openMultiselects.has(id)?' open':''}" id="${id}">
     <button type="button" class="multiselect-btn"><span class="multiselect-btn-label">${esc(label)}</span>${showCount?`<span class="multiselect-count">${selSet.size}</span>`:''}<svg class="ms-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <div class="multiselect-panel">
+      ${searchHtml}
       <label class="multiselect-option multiselect-all"><input type="checkbox"${allChecked||selSet.size===options.length?' checked':''}><span class="ms-check"></span><strong>${esc(allLabel)}</strong></label>
       <div class="multiselect-list">${rows||'<p class="multiselect-empty">Nenhuma opção.</p>'}</div>
     </div>
@@ -1292,6 +1358,33 @@ function wireMultiselect(id,options,getValue,setValue,onChange){
     const onlyBtn=row.querySelector('.ms-only');
     onlyBtn.onclick=ev=>{ev.preventDefault();ev.stopPropagation();setValue(new Set([value]));onChange()};
   });
+  /* Filtra só o que já está na tela (mostra/esconde via [hidden]) — não
+     chama onChange nem reconstrói o HTML, pra não perder o foco/cursor
+     do campo nem o estado dos checkboxes a cada tecla digitada. */
+  const searchInput=root.querySelector('.ms-search-input');
+  if(searchInput){
+    const list=root.querySelector('.multiselect-list');
+    searchInput.onclick=ev=>ev.stopPropagation();
+    searchInput.onkeydown=ev=>ev.stopPropagation();
+    searchInput.oninput=()=>{
+      const q=normalizeTexto(searchInput.value);
+      let anyVisible=false;
+      list.querySelectorAll('.multiselect-option[data-value]').forEach(row=>{
+        const match=!q||normalizeTexto(row.querySelector('.ms-text').textContent).includes(q);
+        row.hidden=!match;
+        if(match)anyVisible=true;
+      });
+      let emptyMsg=list.querySelector('.ms-search-empty');
+      if(!anyVisible&&!emptyMsg){
+        emptyMsg=document.createElement('p');
+        emptyMsg.className='multiselect-empty ms-search-empty';
+        emptyMsg.textContent='Nenhuma opção encontrada.';
+        list.appendChild(emptyMsg);
+      }else if(anyVisible&&emptyMsg){
+        emptyMsg.remove();
+      }
+    };
+  }
 }
 /* Combo (texto livre + painel de sugestões estilizado, ver CSS ".combo").
    getOptions é chamado toda vez que o painel abre/filtra, então sempre
@@ -2429,6 +2522,8 @@ function addProduct(locId,data){
 function updateProduct(locId,id,data){
   const product=locState(locId).products[id];if(!product)return;
   const oldNfeId=product.nfeId;
+  const antes={data:product.data,nfeId:product.nfeId,fornecedor:product.fornecedor,classe:product.classe,nome:product.nome,
+    tipo:product.tipo,ncm:product.ncm,cst:product.cst,valorUnitario:product.valorUnitario,statusManual:product.statusManual};
   ['data','nfeId','fornecedor','classe','nome','tipo','ncm','cst'].forEach(k=>{if(data[k]!=null)product[k]=data[k]});
   /* A ficha do produto representa uma NFE só — todo lançamento feito nela
      pertence a essa mesma nota. Se o número mudar no cadastro, corrige
@@ -2443,7 +2538,22 @@ function updateProduct(locId,id,data){
   if(data.status&&STATUS_MANUAL.includes(data.status))product.statusManual=data.status;
   recalcProduct(locId,id);
   recordOp(locId,'products',id,product);
-  addLog(`editou o produto "${product.nome}" em ${locLabel(locId)}`);
+  /* Loga só os campos que realmente mudaram, com valor antigo → novo —
+     "editou o produto X" sozinho não dizia o QUE mudou, obrigando quem
+     lê o Histórico a adivinhar ou comparar manualmente com o cadastro
+     atual. */
+  const partes=[];
+  if(antes.nome!==product.nome)partes.push(`nome: "${antes.nome}" → "${product.nome}"`);
+  if(antes.classe!==product.classe)partes.push(`classe: "${antes.classe||'—'}" → "${product.classe||'—'}"`);
+  if(antes.fornecedor!==product.fornecedor)partes.push(`fornecedor: "${antes.fornecedor||'—'}" → "${product.fornecedor||'—'}"`);
+  if(antes.tipo!==product.tipo)partes.push(`tipo: "${antes.tipo||'—'}" → "${product.tipo||'—'}"`);
+  if(antes.data!==product.data)partes.push(`data: ${fmtDate(antes.data)} → ${fmtDate(product.data)}`);
+  if(antes.nfeId!==product.nfeId)partes.push(`NFE/ID: "${antes.nfeId||'—'}" → "${product.nfeId||'—'}"`);
+  if(antes.ncm!==product.ncm)partes.push(`NCM: "${antes.ncm||'—'}" → "${product.ncm||'—'}"`);
+  if(antes.cst!==product.cst)partes.push(`CST: "${antes.cst||'—'}" → "${product.cst||'—'}"`);
+  if(antes.valorUnitario!==product.valorUnitario)partes.push(`valor unitário: ${fmtMoney(antes.valorUnitario)} → ${fmtMoney(product.valorUnitario)}`);
+  if(antes.statusManual!==product.statusManual)partes.push(`status: "${antes.statusManual}" → "${product.statusManual}"`);
+  addLog(`editou o produto "${antes.nome}" em ${locLabel(locId)}${partes.length?` — ${partes.join(', ')}`:''}`);
 }
 function removeProduct(locId,id){
   const product=locState(locId).products[id];if(!product)return false;
@@ -2460,6 +2570,7 @@ function addEntry(locId,data){
   if(!entrada&&!saida)throw new Error('Informe uma quantidade de entrada ou saída.');
   if(entrada&&saida)throw new Error('Preencha só entrada OU saída, não as duas.');
   if(saida>0&&saida>(Number(product.estoque)||0))throw new Error(`Saída de ${fmtNum(saida)} maior que o estoque disponível de "${product.nome}" (${fmtNum(product.estoque)}). Ajuste a quantidade ou lance uma entrada antes.`);
+  const estoqueAntes=Number(product.estoque)||0;
   const valorUnitario=numBR(data.valorUnitario);
   const id=uid('en');
   const entry={id,data:data.data||todayIso(),dataFaturamento:data.dataFaturamento||'',fornecedor:data.fornecedor||product.fornecedor||'',nfeId:data.nfeId||product.nfeId||'',
@@ -2469,7 +2580,7 @@ function addEntry(locId,data){
   recalcProduct(locId,product.id);
   recordOp(locId,'entries',id,entry);
   recordOp(locId,'products',product.id,product);
-  addLog(`lançou ${entrada?('entrada de '+fmtNum(entrada)):('saída de '+fmtNum(saida))} de "${product.nome}" em ${locLabel(locId)}`);
+  addLog(`lançou ${entrada?('entrada de '+fmtNum(entrada)):('saída de '+fmtNum(saida))} de "${product.nome}" em ${locLabel(locId)} — tinha ${fmtNum(estoqueAntes)}, ${entrada?'entrou':'saiu'} ${fmtNum(entrada||saida)}, ficou ${fmtNum(product.estoque)}`);
   return entry;
 }
 function updateEntry(locId,id,data){
@@ -2489,6 +2600,9 @@ function updateEntry(locId,id,data){
   if(saida>0&&saida>estoqueSemEsteEntry)throw new Error(`Saída de ${fmtNum(saida)} maior que o estoque disponível de "${product.nome}" (${fmtNum(estoqueSemEsteEntry)}). Ajuste a quantidade ou lance uma entrada antes.`);
   const oldProductId=entry.produtoId;
   const oldNfeId=entry.nfeId;
+  const entradaAntes=Number(entry.entrada)||0,saidaAntes=Number(entry.saida)||0;
+  const estoqueAntes=Number(product.estoque)||0;
+  const nomeProdutoAntigo=(locState(locId).products[oldProductId]||{}).nome;
   Object.assign(entry,{
     data:data.data||entry.data,dataFaturamento:data.dataFaturamento!=null?data.dataFaturamento:entry.dataFaturamento,
     fornecedor:data.fornecedor!=null?data.fornecedor:entry.fornecedor,
@@ -2514,7 +2628,12 @@ function updateEntry(locId,id,data){
   recordOp(locId,'entries',id,entry);
   recordOp(locId,'products',productId,locState(locId).products[productId]);
   if(oldProductId!==productId&&locState(locId).products[oldProductId])recordOp(locId,'products',oldProductId,locState(locId).products[oldProductId]);
-  addLog(`editou um lançamento de "${product.nome}" em ${locLabel(locId)}`);
+  const partes=[];
+  if(oldProductId!==productId)partes.push(`produto: "${nomeProdutoAntigo||'?'}" → "${product.nome}"`);
+  if(entradaAntes!==entrada)partes.push(`entrada: ${fmtNum(entradaAntes)} → ${fmtNum(entrada)}`);
+  if(saidaAntes!==saida)partes.push(`saída: ${fmtNum(saidaAntes)} → ${fmtNum(saida)}`);
+  partes.push(`estoque de "${product.nome}": ${fmtNum(estoqueAntes)} → ${fmtNum(product.estoque)}`);
+  addLog(`editou um lançamento de "${product.nome}" em ${locLabel(locId)} — ${partes.join(', ')}`);
 }
 function removeEntry(locId,id){
   const entry=locState(locId).entries[id];if(!entry)return;
@@ -2530,10 +2649,15 @@ function removeEntry(locId,id){
     const estoqueSemEsteEntry=estoqueAtual-(Number(entry.entrada)||0)+(Number(entry.saida)||0);
     if(estoqueAtual>=0&&estoqueSemEsteEntry<0)throw new Error(`Não é possível remover: sem este lançamento o estoque de "${product.nome}" ficaria negativo (${fmtNum(estoqueSemEsteEntry)}).`);
   }
+  const estoqueAntes=product?Number(product.estoque)||0:null;
   delete locState(locId).entries[id];
   recordOp(locId,'entries',id,null);
   if(locState(locId).products[productId]){recalcProduct(locId,productId);recordOp(locId,'products',productId,locState(locId).products[productId])}
-  addLog(`removeu um lançamento em ${locLabel(locId)}`);
+  const qtdMov=Number(entry.entrada)||Number(entry.saida)||0;
+  const tipoMov=Number(entry.entrada)>0?'entrada':'saída';
+  const nomeProd=product?product.nome:'(produto removido)';
+  const estoqueDepois=product?Number(product.estoque)||0:null;
+  addLog(`removeu uma ${tipoMov} de ${fmtNum(qtdMov)} de "${nomeProd}" em ${locLabel(locId)}${estoqueAntes!=null?` — estoque: ${fmtNum(estoqueAntes)} → ${fmtNum(estoqueDepois)}`:''}`);
 }
 /* Limpeza total dos lançamentos de um produto — pra quando o histórico
    ficou tão bagunçado (estoque bem negativo) que o jeito mais rápido é
@@ -2542,6 +2666,7 @@ function removeEntry(locId,id){
    já É apagar tudo, não faria sentido bloquear removendo um por um. */
 function removerTodosLancamentosProduto(locId,produtoId){
   const product=locState(locId).products[produtoId];if(!product)return 0;
+  const estoqueAntes=Number(product.estoque)||0;
   const ids=entriesForProduct(locId,produtoId).map(e=>e.id);
   ids.forEach(id=>{
     delete locState(locId).entries[id];
@@ -2549,7 +2674,7 @@ function removerTodosLancamentosProduto(locId,produtoId){
   });
   recalcProduct(locId,produtoId);
   recordOp(locId,'products',produtoId,product);
-  addLog(`removeu todos os ${ids.length} lançamento(s) de "${product.nome}" em ${locLabel(locId)} (limpeza de estoque)`);
+  addLog(`removeu todos os ${ids.length} lançamento(s) de "${product.nome}" em ${locLabel(locId)} — estoque: ${fmtNum(estoqueAntes)} → ${fmtNum(product.estoque)} (limpeza de estoque)`);
   return ids.length;
 }
 async function confirmRemoverTodosLancamentosProduto(locId,produtoId){
@@ -2965,10 +3090,12 @@ function renderCadastro(){
   if(nomeFiltroGlobal)list=list.filter(p=>passaNomeFiltroGlobal(p.nome));
 
   const valorTotalFiltrado=list.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
+  const estoqueTotalFiltrado=list.reduce((s,p)=>s+(Number(p.estoque)||0),0);
   const sendoUtilizado=list.filter(p=>p.status==='Sendo Utilizado').length;
   const foraDeUso=list.filter(p=>p.status==='Fora de uso').length;
   document.getElementById('cadastroKpiRow').innerHTML=`
     <div class="kpi"><div class="kpi-icon">📦</div><div class="kpi-copy"><span>Itens cadastrados</span><strong>${fmtNum(list.length)}</strong></div></div>
+    <div class="kpi"><div class="kpi-icon">🔢</div><div class="kpi-copy"><span>Total em unidades</span><strong title="Soma o campo Estoque de todas as fichas filtradas — mistura unidades diferentes (caixa, kg, unidade...) se os produtos filtrados não forem todos do mesmo Tipo.">${fmtNum(estoqueTotalFiltrado)}</strong></div></div>
     <div class="kpi"><div class="kpi-icon">💰</div><div class="kpi-copy"><span>Valor total em estoque</span><strong>${fmtMoney(valorTotalFiltrado)}</strong></div></div>
     <div class="kpi"><div class="kpi-icon">✅</div><div class="kpi-copy"><span>Sendo utilizado</span><strong>${fmtNum(sendoUtilizado)}</strong></div></div>
     <div class="kpi"><div class="kpi-icon">🚫</div><div class="kpi-copy"><span>Fora de uso</span><strong>${fmtNum(foraDeUso)}</strong></div></div>`;
@@ -4057,6 +4184,7 @@ async function corrigirValorUnitarioProduto(){
   const custosMsg=custos>0?` (mais ${fmtMoney(custos)} de custos adicionais)`:'';
   const ok=await confirmModern(`Recalcular o valor unitário de "${product.nome}" pra ${fmtMoney((valorNota+custos)/qtd)}${custosMsg} e corrigir os ${entries.length} lançamento(s) já feitos nessa ficha (entradas e saídas)? Essa ação não pode ser desfeita.`,{title:'Corrigir valor da nota',confirmText:'Recalcular'});
   if(!ok)return;
+  const valorAntigo=product.valorUnitario;
   const novoValor=(valorNota+custos)/qtd;
   product.valorUnitario=novoValor;
   product.custosAdicionais=productCustosAdicionais.filter(c=>String(c.descricao||'').trim());
@@ -4067,7 +4195,7 @@ async function corrigirValorUnitarioProduto(){
   });
   recalcProduct(locId,id);
   recordOp(locId,'products',id,product);
-  addLog(`corrigiu o valor unitário do produto "${product.nome}" em ${locLabel(locId)}`);
+  addLog(`corrigiu o valor unitário do produto "${product.nome}" em ${locLabel(locId)} — valor unitário: ${fmtMoney(valorAntigo)} → ${fmtMoney(novoValor)} (${entries.length} lançamento(s) atualizados)`);
   saveState();renderAll();
   document.getElementById('productValorUnitario').value=inputBRMoney(novoValor);
   document.getElementById('productCorrigirValorNota').value='';
@@ -4674,6 +4802,44 @@ function applyTheme(theme){
   else document.documentElement.removeAttribute('data-theme');
 }
 
+/* ── Corrigir zoom em telas com escala do Windows fracionária ─────────
+   125%/150% de escala do Windows deixam o devicePixelRatio fracionário
+   (1.25/1.5), e é exatamente essa fração que faz o Chrome arredondar a
+   largura das colunas da tabela de um jeito pro cabeçalho e de outro pro
+   corpo, desalinhando um do outro. Ajustando o ZOOM DA PÁGINA pro inverso
+   dessa fração (ex.: escala 125% → zoom 80%, escala 150% → zoom ~67%), a
+   multiplicação dos dois volta pra perto de 1 (inteiro) e o arredondamento
+   passa a bater certo dos dois lados — mesmo truque de fazer isso na mão
+   pelo Ctrl+- do navegador, só que automático e sem o usuário precisar
+   entender o motivo. Mede o devicePixelRatio UMA VEZ, aqui no carregamento
+   da página (antes de qualquer zoom ser aplicado) — depois de aplicado o
+   zoom, o próprio devicePixelRatio passa a refletir o valor já corrigido,
+   então não dá pra remedir depois pra decidir o próximo toggle. */
+const NATIVE_DPR=window.devicePixelRatio||1;
+const ZOOM_FIX_KEY='spg_produtos_zoom_fix';
+const zoomFixSuportado=typeof CSS!=='undefined'&&CSS.supports&&CSS.supports('zoom','100%');
+function zoomFixNecessario(){
+  return Math.abs(NATIVE_DPR-Math.round(NATIVE_DPR))>0.02;
+}
+function aplicarZoomFix(ligado){
+  document.documentElement.style.zoom=ligado?Math.round(100/NATIVE_DPR)+'%':'';
+  localStorage.setItem(ZOOM_FIX_KEY,ligado?'1':'0');
+  const btn=document.getElementById('zoomFixBtn');
+  if(btn)btn.classList.toggle('active',ligado);
+}
+function initZoomFix(){
+  const btn=document.getElementById('zoomFixBtn');
+  if(!btn)return;
+  if(!zoomFixSuportado||!zoomFixNecessario())return; // fica hidden (padrão do HTML)
+  btn.hidden=false;
+  aplicarZoomFix(localStorage.getItem(ZOOM_FIX_KEY)==='1');
+  btn.onclick=()=>{
+    const ligar=!btn.classList.contains('active');
+    aplicarZoomFix(ligar);
+    toast(ligar?'Zoom ajustado pra corrigir a escala da tela. Clique de novo pra voltar ao normal.':'Zoom normal restaurado.');
+  };
+}
+
 /* ── Boot ─────────────────────────────────────────────────────────────
    Quem decide entre tela de login e painel liberado é o próprio Supabase
    Auth, via onAuthStateChange — dispara sozinho ao carregar a página
@@ -4730,6 +4896,7 @@ supabase.auth.onAuthStateChange((event,session)=>{
 });
 function boot(){
   applyTheme(localStorage.getItem(THEME_KEY)||'');
+  initZoomFix();
 }
 
 /* ── Wiring estático (rodado uma vez, elementos já existem no HTML) ── */
