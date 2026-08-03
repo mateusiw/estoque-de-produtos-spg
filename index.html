@@ -812,8 +812,8 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
         <div class="field"><label for="entryData">Data que chegou no estoque<span class="help-icon" tabindex="0">?<span class="tooltip">Data real da movimentação física (quando o material chegou/saiu de verdade na empresa). O painel usa essa data pra calcular o saldo em ordem cronológica e pra decidir se ela entra nas "saídas da semana" do Relatório e na média de uso calculada.</span></span></label><input id="entryData" type="date"></div>
         <div class="field"><label for="entryDataFaturamento">Data de faturamento da NF<span class="help-icon" tabindex="0">?<span class="tooltip">Data em que a nota fiscal foi faturada pelo fornecedor — pode ser diferente da data em que o material chegou de fato na empresa. Só informativo, não entra em nenhum cálculo.</span></span></label><input id="entryDataFaturamento" type="date"></div>
         <div class="field combo"><label for="entryDestino">Destino<span class="help-icon" tabindex="0">?<span class="tooltip">Pra onde foi (ou de onde veio) esta movimentação — ex.: Entrada Estoque, nome de um cliente, Descarte. Usado nos filtros da aba Lançamentos e no Relatório.</span></span></label><input id="entryDestino" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Entrada Estoque, Descarte, nome do cliente..."><div class="combo-panel" id="entryDestinoPanel" hidden></div></div>
-        <div class="field"><label for="entryEntrada">Entrada<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que ENTROU no estoque (compra, ajuste positivo...). Preencha só Entrada OU Saída neste lançamento, nunca as duas juntas.</span></span></label><input id="entryEntrada" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioEntry()"></div>
-        <div class="field"><label for="entrySaida">Saída<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que SAIU do estoque (uso, venda, descarte...). É a partir da soma das saídas que o painel calcula sozinho a média de uso semanal do produto.</span></span></label><input id="entrySaida" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
+        <div class="field"><label for="entryEntrada">Entrada<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que ENTROU no estoque (compra, ajuste positivo...). Preencha só Entrada OU Saída neste lançamento, nunca as duas juntas.</span></span></label><input id="entryEntrada" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioEntry();atualizarEstoqueDisponivelEntry()"></div>
+        <div class="field"><label for="entrySaida">Saída<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que SAIU do estoque (uso, venda, descarte...). É a partir da soma das saídas que o painel calcula sozinho a média de uso semanal do produto.</span></span></label><input id="entrySaida" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueDisponivelEntry()"><span class="field-help" id="entryEstoqueDisponivel"></span></div>
         <div class="field"><label for="entryValorUnitario">Valor unitário<span class="help-icon" tabindex="0">?<span class="tooltip">Preço desta movimentação específica (pode variar de lote pra lote). Multiplicado pela quantidade, calcula o Valor Total deste lançamento. Numa Entrada com nota fiscal, preencha "Valor total da nota" ao lado — este campo é calculado sozinho (valor da nota ÷ quantidade) e trava pra edição manual enquanto isso. Numa Saída, ou se não tiver o valor total da nota, digite aqui direto.</span></span></label><div class="money-input"><span>R$</span><input id="entryValorUnitario" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this)"></div><span class="field-help" id="entryValorUnitarioNote" hidden>Calculado automaticamente: valor da nota ÷ quantidade.</span></div>
         <div class="field"><label for="entryValorNota">Valor total deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quanto esse produto especificamente custou na nota (só faz sentido numa Entrada, não numa Saída) — não o total da nota inteira, se ela tiver outros produtos junto. Preenchido junto com "Entrada", o painel calcula sozinho o Valor unitário exato — valor ÷ quantidade, com mais casas decimais do que cabe num preço arredondado. Campo só de apoio pro cálculo, não é salvo.</span></span></label><div class="money-input"><span>R$</span><input id="entryValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this);calcValorUnitarioEntry()"></div></div>
         <div class="field combo"><label for="entryFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta movimentação específica. Já vem preenchido com o fornecedor padrão do produto, mas pode trocar se este lote em particular veio de outro fornecedor.</span></span></label><select id="entryFornecedor" hidden></select><input type="text" id="entryFornecedorSearch" name="entryFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="entryFornecedorPanel" hidden></div></div>
@@ -4032,6 +4032,7 @@ function openEntryDialog(id,presetProdutoId){
   document.getElementById('entryForm').reset();
   document.getElementById('entryValorUnitario').disabled=false;
   document.getElementById('entryValorUnitarioNote').hidden=true;
+  document.getElementById('entryEstoqueDisponivel').textContent='';
   editingEntryId=id||null;editingEntryLoc=activeLocation;
   document.getElementById('entryDialogTitle').textContent=id?'Editar lançamento':'Novo lançamento';
   const prods=productsOf(activeLocation).slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
@@ -4066,6 +4067,7 @@ function openEntryDialog(id,presetProdutoId){
     document.getElementById('entryCiclo').value=e.ciclo;
     populateFornecedorSelect(document.getElementById('entryFornecedor'),e.fornecedor);
     document.getElementById('entryNfe').value=e.nfeId;
+    atualizarEstoqueDisponivelEntry();
   }else{
     document.getElementById('entryData').value=todayIso();
     document.getElementById('entryDataFaturamento').value='';
@@ -4091,6 +4093,34 @@ function onEntryProductChange(){
   document.getElementById('entryValorUnitario').value=p.valorUnitario?inputBRMoney(p.valorUnitario):'';
   populateFornecedorSelect(document.getElementById('entryFornecedor'),p.fornecedor||'');
   document.getElementById('entryNfe').value=p.nfeId||'';
+  atualizarEstoqueDisponivelEntry();
+}
+/* Mostra o estoque atual do produto escolhido embaixo do campo Saída —
+   pra decidir na hora quanto dá pra tirar sem precisar ir conferir no
+   Cadastro antes — e, conforme Entrada ou Saída vai sendo digitada,
+   também o estoque QUE VAI FICAR depois deste lançamento (mesma conta
+   de recalcProduct, só que ao vivo, antes de salvar). Acusa em
+   vermelho se a Saída digitada passar do que tem disponível (mesma
+   regra que addEntry/updateEntry aplicam de verdade ao salvar — isso
+   aqui é só o aviso visual, antecipado). */
+function atualizarEstoqueDisponivelEntry(){
+  const el=document.getElementById('entryEstoqueDisponivel');
+  if(!el)return;
+  const id=document.getElementById('entryProduto').value;
+  const p=locState(activeLocation).products[id];
+  if(!p){el.textContent='';return}
+  const estoqueAtual=Number(p.estoque)||0;
+  const unidade=p.tipo?' '+esc(p.tipo):'';
+  const entradaDigitada=numBR(document.getElementById('entryEntrada').value);
+  const saidaDigitada=numBR(document.getElementById('entrySaida').value);
+  const estourou=saidaDigitada>0&&saidaDigitada>estoqueAtual;
+  let html=`Estoque disponível: <strong>${fmtNum(estoqueAtual)}${unidade}</strong>`;
+  if(entradaDigitada>0||saidaDigitada>0){
+    const resultante=round2(estoqueAtual+entradaDigitada-saidaDigitada);
+    html+=` — depois deste lançamento fica <strong style="color:${estourou?'var(--critical)':'var(--brand-dark)'}">${fmtNum(resultante)}${unidade}</strong>`;
+  }
+  if(estourou)html+=' <span style="color:var(--critical);font-weight:800">— saída maior que o disponível!</span>';
+  el.innerHTML=html;
 }
 function saveEntryForm(){
   const produtoId=document.getElementById('entryProduto').value;
@@ -4622,7 +4652,7 @@ boot();
    visíveis pra atributos HTML inline (oninput="..." etc) — só pro próprio
    módulo. Os campos digitáveis do painel chamam essas funções direto no
    HTML, então precisam ser expostas em window pra não dar "is not defined". */
-Object.assign(window,{brDecInput,brIntInput,brNumLiveInput,brMoneyLiveInput,atualizarPreviewAjusteEstoque,calcValorUnitarioProduto,calcValorUnitarioEntry,atualizarEstoqueAlvoNota});
+Object.assign(window,{brDecInput,brIntInput,brNumLiveInput,brMoneyLiveInput,atualizarPreviewAjusteEstoque,calcValorUnitarioProduto,calcValorUnitarioEntry,atualizarEstoqueAlvoNota,atualizarEstoqueDisponivelEntry});
 </script>
 </body>
 </html>
