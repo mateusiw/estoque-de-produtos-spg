@@ -750,6 +750,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <div class="filter-chip" id="cadastroFilterChip" hidden></div>
     <div class="filter-bar">
       <div class="filter-field"><label for="cadastroSearch">Buscar</label><input type="search" id="cadastroSearch" placeholder="Produto, fornecedor, NFE, tr..."></div>
+      <div class="filter-field"><label>Produto</label><div id="cadastroFilterNomeMount"></div></div>
       <div class="filter-field"><label>Classe</label><div id="cadastroFilterClasseMount"></div></div>
       <div class="filter-field"><label>Status</label><div id="cadastroFilterStatusMount"></div></div>
       <div class="filter-field"><label for="cadastroMediaPeriodo" title="Período usado pra calcular a média semanal de uso a partir das saídas lançadas">Média calc.</label><select id="cadastroMediaPeriodo"></select></div>
@@ -767,6 +768,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <div class="filter-chip" id="lancFilterChip" hidden></div>
     <div class="filter-bar">
       <div class="filter-field"><label for="lancSearch">Buscar</label><input type="search" id="lancSearch" placeholder="Produto, fornecedor, classe, ciclo..."></div>
+      <div class="filter-field"><label>Produto</label><div id="lancFilterNomeMount"></div></div>
       <div class="filter-field"><label for="lancFilterTipo">Tipo</label><select id="lancFilterTipo">
         <option value="">Entradas e saídas</option>
         <option value="entrada">Só entradas</option>
@@ -2562,9 +2564,9 @@ async function confirmRemoverTodosLancamentosProduto(locId,produtoId){
 }
 
 /* ── Renderização ────────────────────────────────────────────────── */
-let cadastroSort={col:'nome',dir:1}, cadastroFilters={search:'',classe:null,status:new Set(['Sendo Utilizado']),nomeExato:''};
+let cadastroSort={col:'nome',dir:1}, cadastroFilters={search:'',classe:null,status:new Set(['Sendo Utilizado']),nomeExato:'',nome:null};
 let cadastroGroupSort={col:'nome',dir:1}, cadastroGroupByName=false;
-let lancSort={col:'data',dir:-1}, lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:''}, lancPage=0;
+let lancSort={col:'data',dir:-1}, lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:'',nome:null}, lancPage=0;
 const LANC_PAGE_SIZE=50;
 let fornecedorFilters={nome:'',nomeFantasia:'',cnpj:'',cpf:'',telefone:'',email:'',contato:'',endereco:'',duplicados:false};
 
@@ -2934,6 +2936,9 @@ function renderResumo(){
 function renderCadastro(){
   const locId=activeLocation;
   const classeOptions=classesUsed(locId);
+  const nomeOptions=nomesProdutoUsados(locId);
+  document.getElementById('cadastroFilterNomeMount').innerHTML=multiselectHtml('cadastroFilterNome','Todos os produtos',nomeOptions,cadastroFilters.nome);
+  wireMultiselect('cadastroFilterNome',nomeOptions,()=>cadastroFilters.nome,v=>cadastroFilters.nome=v,renderCadastro);
   document.getElementById('cadastroFilterClasseMount').innerHTML=multiselectHtml('cadastroFilterClasse','Todas as classes',classeOptions,cadastroFilters.classe);
   wireMultiselect('cadastroFilterClasse',classeOptions,()=>cadastroFilters.classe,v=>cadastroFilters.classe=v,renderCadastro);
   document.getElementById('cadastroFilterStatusMount').innerHTML=multiselectHtml('cadastroFilterStatus','Todos os status',STATUS_ALL,cadastroFilters.status);
@@ -2955,6 +2960,7 @@ function renderCadastro(){
   if(cadastroFilters.search){const q=cadastroFilters.search.toLowerCase();list=list.filter(p=>[p.nome,p.fornecedor,p.nfeId,p.classe].some(v=>String(v||'').toLowerCase().includes(q)))}
   if(cadastroFilters.classe)list=list.filter(p=>cadastroFilters.classe.has(p.classe));
   if(cadastroFilters.status)list=list.filter(p=>cadastroFilters.status.has(p.status));
+  if(cadastroFilters.nome)list=list.filter(p=>cadastroFilters.nome.has(p.nome));
   if(cadastroFilters.nomeExato)list=list.filter(p=>p.nome===cadastroFilters.nomeExato);
   if(nomeFiltroGlobal)list=list.filter(p=>passaNomeFiltroGlobal(p.nome));
 
@@ -3061,6 +3067,9 @@ function renderCadastroGrouped(list){
 }
 function renderLancamentos(){
   const locId=activeLocation;
+  const nomeOptions=nomesProdutoUsados(locId);
+  document.getElementById('lancFilterNomeMount').innerHTML=multiselectHtml('lancFilterNome','Todos os produtos',nomeOptions,lancFilters.nome);
+  wireMultiselect('lancFilterNome',nomeOptions,()=>lancFilters.nome,v=>lancFilters.nome=v,()=>{lancPage=0;renderLancamentos()});
   const destinoOptions=destinosUsed(locId);
   document.getElementById('lancFilterDestinoMount').innerHTML=multiselectHtml('lancFilterDestino','Todos os destinos',destinoOptions,lancFilters.destino);
   wireMultiselect('lancFilterDestino',destinoOptions,()=>lancFilters.destino,v=>lancFilters.destino=v,()=>{lancPage=0;renderLancamentos()});
@@ -3077,6 +3086,7 @@ function renderLancamentos(){
   if(lancFilters.tipo==='saida')list=list.filter(e=>Number(e.saida)>0);
   if(lancFilters.destino)list=list.filter(e=>lancFilters.destino.has(e.destino));
   if(lancFilters.classe)list=list.filter(e=>lancFilters.classe.has(e.classe));
+  if(lancFilters.nome)list=list.filter(e=>{const p=locState(locId).products[e.produtoId];return p&&lancFilters.nome.has(p.nome)});
   if(lancFilters.search){
     const q=lancFilters.search.toLowerCase();
     list=list.filter(e=>{const p=locState(locId).products[e.produtoId];return [p?p.nome:'',e.fornecedor,e.nfeId,e.classe,e.ciclo].some(v=>String(v||'').toLowerCase().includes(q))});
@@ -3386,7 +3396,7 @@ async function confirmRemoveFornecedorUi(id){
 }
 
 /* ── Compras (alerta de estoque baixo + solicitação de compra) ──────── */
-let comprasFilters={somenteAlerta:true,search:'',classe:null,status:new Set(['Sendo Utilizado'])};
+let comprasFilters={somenteAlerta:true,search:'',classe:null,status:new Set(['Sendo Utilizado']),nome:null};
 let comprasSelected=new Set();
 /* A quantidade sugerida é só um ponto de partida — a pessoa pode saber
    que vai comprar mais (ou menos) por outro motivo (preço melhor em lote
@@ -3489,10 +3499,12 @@ function comprasRows(locId){
 function renderCompras(){
   const locId=activeLocation;
   const classeOptions=classesUsed(locId);
+  const nomeOptions=nomesProdutoUsados(locId);
   let rows=comprasRows(locId);
   if(comprasFilters.search){const q=comprasFilters.search.toLowerCase();rows=rows.filter(r=>[r.nome,r.fornecedorLabel,...r.classes,...r.fichas.map(p=>p.nfeId)].some(v=>String(v||'').toLowerCase().includes(q)))}
   if(comprasFilters.classe)rows=rows.filter(r=>[...r.classes].some(c=>comprasFilters.classe.has(c)));
   if(comprasFilters.status)rows=rows.filter(r=>[...r.statusSet].some(s=>comprasFilters.status.has(s)));
+  if(comprasFilters.nome)rows=rows.filter(r=>comprasFilters.nome.has(r.nome));
   if(comprasFilters.somenteAlerta)rows=rows.filter(r=>r.info.diasAteSolicitar<=14);
   if(nomeFiltroGlobal)rows=rows.filter(r=>passaNomeFiltroGlobal(r.nome));
   rows.sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
@@ -3528,6 +3540,7 @@ function renderCompras(){
   document.getElementById('viewCompras').innerHTML=`
     <div class="filter-bar">
       <div class="filter-field"><label for="comprasSearch">Buscar</label><input type="search" id="comprasSearch" placeholder="Produto, fornecedor, NFE, classe..." value="${esc(comprasFilters.search)}"></div>
+      <div class="filter-field"><label>Produto</label><div id="comprasFilterNomeMount"></div></div>
       <div class="filter-field"><label>Classe</label><div id="comprasFilterClasseMount"></div></div>
       <div class="filter-field"><label>Status</label><div id="comprasFilterStatusMount"></div></div>
       <div class="filter-bar-actions"><button type="button" class="btn" id="comprasClearFiltersBtn">Limpar filtros</button></div>
@@ -3542,12 +3555,14 @@ function renderCompras(){
       <thead><tr><th></th><th>Produto</th><th>Fornecedor</th><th>Estoque</th><th>Média sem. (${mediaSemanalPeriodo}d)</th><th title="Pra essa compra, o fornecedor já tem pronto ou vai precisar produzir? Isso muda o prazo usado no cálculo ao lado. Sem escolher, assume o pior caso (o maior prazo dos dois cadastrados no produto).">Como chega</th><th>Prazo total (dias)</th><th>Urgência</th><th>Dia sugerido p/ pedir</th><th title="O sistema sugere uma quantidade, mas dá pra digitar outra antes de gerar a solicitação. O valor logo abaixo é uma estimativa (quantidade × valor unitário atual, ao lado) e não inclui frete.">Qtd. a comprar<br><small style="font-weight:650;text-transform:none">valor estimado, sem frete</small></th><th>Unidade</th><th title="Vem preenchido com o último valor pago, mas edite se o preço mudou — é o valor usado no estimado e na solicitação de compra gerada.">Valor unit. atual<br><small style="font-weight:650;text-transform:none">último valor pago, abaixo</small></th><th>Últ. qtd. de entrada</th></tr></thead>
       <tbody>${rowsHtml||`<tr><td colspan="13" class="empty-row">Nenhum produto com alerta de compra${comprasFilters.somenteAlerta?' nos próximos 14 dias':''}. Cadastre a média semanal e o tempo de entrega no produto (aba Cadastro) para aparecer aqui.</td></tr>`}</tbody>
     </table></div>`;
+  document.getElementById('comprasFilterNomeMount').innerHTML=multiselectHtml('comprasFilterNome','Todos os produtos',nomeOptions,comprasFilters.nome);
+  wireMultiselect('comprasFilterNome',nomeOptions,()=>comprasFilters.nome,v=>comprasFilters.nome=v,renderCompras);
   document.getElementById('comprasFilterClasseMount').innerHTML=multiselectHtml('comprasFilterClasse','Todas as classes',classeOptions,comprasFilters.classe);
   wireMultiselect('comprasFilterClasse',classeOptions,()=>comprasFilters.classe,v=>comprasFilters.classe=v,renderCompras);
   document.getElementById('comprasFilterStatusMount').innerHTML=multiselectHtml('comprasFilterStatus','Todos os status',STATUS_ALL,comprasFilters.status);
   wireMultiselect('comprasFilterStatus',STATUS_ALL,()=>comprasFilters.status,v=>comprasFilters.status=v,renderCompras);
   document.getElementById('comprasSearch').oninput=e=>{comprasFilters.search=e.target.value;renderCompras()};
-  document.getElementById('comprasClearFiltersBtn').onclick=()=>{comprasFilters={somenteAlerta:comprasFilters.somenteAlerta,search:'',classe:null,status:null};renderCompras()};
+  document.getElementById('comprasClearFiltersBtn').onclick=()=>{comprasFilters={somenteAlerta:comprasFilters.somenteAlerta,search:'',classe:null,status:null,nome:null};renderCompras()};
   document.getElementById('comprasMediaPeriodo').onchange=e=>setMediaSemanalPeriodo(e.target.value);
   document.getElementById('comprasSomenteAlerta').onchange=e=>{comprasFilters.somenteAlerta=e.target.checked;renderCompras()};
   document.getElementById('comprasSelectAllBtn').onclick=()=>{
@@ -3715,6 +3730,7 @@ let relatorioGroupByName=false;
 let relatorioPeriodo='semana';
 let relatorioFiltroStatus=new Set(['Sendo Utilizado']);
 let relatorioFiltroClasse=null;
+let relatorioFiltroNome=null;
 const RELATORIO_PERIODO_OPTIONS=[
   {value:'semana',label:'Esta semana'},
   {value:'7',label:'Últimos 7 dias'},
@@ -3766,6 +3782,7 @@ function relatorioEstoqueFiltrado(locId){
   let products=productsOf(locId);
   if(relatorioFiltroStatus)products=products.filter(p=>relatorioFiltroStatus.has(p.status));
   if(relatorioFiltroClasse)products=products.filter(p=>relatorioFiltroClasse.has(p.classe));
+  if(relatorioFiltroNome)products=products.filter(p=>relatorioFiltroNome.has(p.nome));
   if(nomeFiltroGlobal)products=products.filter(p=>passaNomeFiltroGlobal(p.nome));
   return products;
 }
@@ -3781,6 +3798,7 @@ function buildRelatorioHtml(locId){
     if(!(Number(e.saida)>0&&e.data>=start&&e.data<=end))return false;
     const p=locState(locId).products[e.produtoId];
     if(relatorioFiltroClasse&&(!p||!relatorioFiltroClasse.has(p.classe)))return false;
+    if(relatorioFiltroNome&&(!p||!relatorioFiltroNome.has(p.nome)))return false;
     if(nomeFiltroGlobal&&!passaNomeFiltroGlobal(p?p.nome:''))return false;
     return true;
   });
@@ -3858,12 +3876,14 @@ function buildRelatorioHtml(locId){
 function renderRelatorio(){
   const locId=activeLocation;
   const classeOptions=classesUsed(locId);
+  const nomeOptions=nomesProdutoUsados(locId);
   const estoqueFiltrado=relatorioEstoqueFiltrado(locId);
   const qtdEstoqueKpi=estoqueFiltrado.length;
   const valorEstoqueKpi=estoqueFiltrado.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
   document.getElementById('viewRelatorio').innerHTML=`
     <div class="table-toolbar">
       <label class="toolbar-check" title="Junta todas as fichas/lançamentos com o mesmo nome de produto, somando estoque e saídas."><input type="checkbox" id="relatorioAgruparNome"${relatorioGroupByName?' checked':''}> Agrupar por nome</label>
+      <div class="filter-field" style="min-width:170px"><label>Produto</label><div id="relatorioFilterNomeMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Classe</label><div id="relatorioFilterClasseMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Status (estoque)</label><div id="relatorioFilterStatusMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label for="relatorioPeriodo" title="Período considerado na tabela de saídas — o estoque atual não usa esse filtro.">Período das saídas</label><select id="relatorioPeriodo">${relatorioPeriodoOptionsHtml()}</select></div>
@@ -3876,6 +3896,8 @@ function renderRelatorio(){
     </div>
     ${buildRelatorioHtml(locId)}`;
   document.getElementById('relatorioAgruparNome').onchange=e=>{relatorioGroupByName=e.target.checked;renderRelatorio()};
+  document.getElementById('relatorioFilterNomeMount').innerHTML=multiselectHtml('relatorioFilterNome','Todos os produtos',nomeOptions,relatorioFiltroNome);
+  wireMultiselect('relatorioFilterNome',nomeOptions,()=>relatorioFiltroNome,v=>relatorioFiltroNome=v,renderRelatorio);
   document.getElementById('relatorioFilterClasseMount').innerHTML=multiselectHtml('relatorioFilterClasse','Todas as classes',classeOptions,relatorioFiltroClasse);
   wireMultiselect('relatorioFilterClasse',classeOptions,()=>relatorioFiltroClasse,v=>relatorioFiltroClasse=v,renderRelatorio);
   document.getElementById('relatorioFilterStatusMount').innerHTML=multiselectHtml('relatorioFilterStatus','Todos os status',STATUS_ALL,relatorioFiltroStatus);
@@ -4729,12 +4751,12 @@ document.getElementById('addProductBtn').onclick=()=>openProductDialog();
 document.getElementById('productSaveNextBtn').onclick=()=>saveProductFormAndNext();
 document.getElementById('productCorrigirValorBtn').onclick=()=>corrigirValorUnitarioProduto();
 document.getElementById('productAddCustoBtn').onclick=()=>addCustoRow();
-document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:''};document.getElementById('cadastroSearch').value='';renderCadastro()};
+document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:'',nome:null};document.getElementById('cadastroSearch').value='';renderCadastro()};
 document.getElementById('cadastroAgruparNome').onchange=e=>{cadastroGroupByName=e.target.checked;if(cadastroGroupByName)cadastroFilters.nomeExato='';renderCadastro()};
 document.getElementById('lancSearch').oninput=e=>{lancFilters.search=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('lancFilterTipo').onchange=e=>{lancFilters.tipo=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('addEntryBtn').onclick=()=>openEntryDialog();
-document.getElementById('lancClearFiltersBtn').onclick=()=>{lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:''};lancPage=0;document.getElementById('lancSearch').value='';document.getElementById('lancFilterTipo').value='';renderLancamentos()};
+document.getElementById('lancClearFiltersBtn').onclick=()=>{lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:'',nome:null};lancPage=0;document.getElementById('lancSearch').value='';document.getElementById('lancFilterTipo').value='';renderLancamentos()};
 document.getElementById('addFornecedorBtn').onclick=()=>openFornecedorDialog();
 document.getElementById('fornecedorFilterNome').oninput=e=>{fornecedorFilters.nome=e.target.value;renderFornecedores()};
 document.getElementById('fornecedorFilterFantasia').oninput=e=>{fornecedorFilters.nomeFantasia=e.target.value;renderFornecedores()};
