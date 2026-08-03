@@ -11,7 +11,12 @@
   color-scheme:light;
   --page:#f3f6f4; --surface:#ffffff; --surface-2:#f6faf7; --surface-3:#eef4f0;
   --surface-translucent:rgba(255,255,255,.88);
-  --ink:#101f16; --ink-2:#43534a; --muted:#75837b; --line:#e1e8e3; --line-strong:#ccd8d0; --border:rgba(14,28,20,.08);
+  /* --muted escurecido de #75837b pra #56655d: o tom antigo dava ~3.65:1 de
+     contraste contra --surface/--page — abaixo do mínimo WCAG AA (4.5:1)
+     pro texto pequeno (rótulos de 10.5-13px) que usa essa cor no painel
+     inteiro. O novo tom passa de 5:1 contra branco/página, mantendo a
+     mesma família verde-acinzentada da marca. */
+  --ink:#101f16; --ink-2:#43534a; --muted:#56655d; --line:#e1e8e3; --line-strong:#ccd8d0; --border:rgba(14,28,20,.08);
   --brand:#087a4a; --brand-dark:#065c38; --brand-light:#12a565; --brand-soft:#e7f4ed; --brand-soft-strong:#cfeadd;
   --critical:#cf3b3b; --critical-soft:#fdeeee; --good:#0ca30c; --warning:#f5a913;
   --cloud:#1769a6; --cloud-soft:#e8f2fd; --cloud-soft-strong:#cfe4f7;
@@ -58,6 +63,29 @@ body{margin:0;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Ar
 html.dialog-open,body.dialog-open{overflow:hidden}
 button,input,select{font:inherit;color:inherit}
 ::selection{background:var(--brand-soft-strong)}
+
+/* ── Acessibilidade base ──────────────────────────────────────────────
+   Três coisas que faltavam pro painel ficar utilizável de teclado e mais
+   confortável em telas menores/zoom diferente de 100%, sem mexer no
+   restante do visual: 1) indicador de foco visível e consistente em TODO
+   elemento interativo (antes só os <input>/<select> tinham realce ao
+   focar — abas, botões, linhas de tabela e chips não tinham nenhum,
+   tornando a navegação por Tab invisível); 2) respeito a
+   prefers-reduced-motion (quem tem essa preferência do sistema ligada não
+   deve receber as animações/transições do painel); 3) link "Pular para o
+   conteúdo", padrão de acessibilidade pra quem navega por teclado não
+   precisar tabular por todo o cabeçalho antes de chegar no conteúdo. */
+:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px;border-radius:4px}
+.btn:focus-visible,.location-tab:focus-visible,.sub-tab:focus-visible,.status-box:focus-visible,
+.multiselect-btn:focus-visible,.loc-chip:focus-visible,.period-toggle button:focus-visible,
+.mini-toggle:focus-visible,.mini-edit:focus-visible,.mini-remove:focus-visible,.mini-adjust:focus-visible,.mini-add:focus-visible{outline-offset:3px}
+.prod-table tbody tr:focus-visible{outline:2.5px solid var(--brand);outline-offset:-2px}
+.skip-link{position:fixed;top:-60px;left:12px;z-index:999;background:var(--brand-dark);color:#fff;font-weight:800;font-size:13.5px;
+  padding:12px 18px;border-radius:0 0 12px 12px;box-shadow:var(--shadow-md);transition:top .15s;text-decoration:none}
+.skip-link:focus{top:0}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
+}
 /* Histórico (não repetir): já tentamos fazer .shell (em vez da página)
    ser o container de scroll, com a barra do topo em position:fixed —
    virou um bug PERSISTENTE pior (cabeçalho da tabela grudando solto no
@@ -175,16 +203,6 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 .sub-tab.active{color:var(--brand-dark);border-bottom-color:var(--brand)}
 :root[data-theme="dark"] .sub-tab.active{color:var(--brand-light)}
 @media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .sub-tab.active{color:var(--brand-light)}}
-/* Filtro global por nome do produto, fixo no cabeçalho — diferente dos
-   campos "Buscar" de cada aba (que filtram vários campos só daquela
-   aba), este só olha o nome e vale pras 5 abas de produto ao mesmo
-   tempo, sem resetar ao trocar de aba/local. */
-.global-nome-filter{display:flex;align-items:center;gap:9px;margin:0 0 8px;padding:8px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--muted);transition:border-color .15s,box-shadow .15s,background .15s}
-.global-nome-filter:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--surface)}
-.global-nome-filter svg{flex:none;width:17px;height:17px}
-.global-nome-filter input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:14px;color:var(--ink)}
-.global-nome-filter-clear{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:19px;line-height:1;padding:2px 4px;border-radius:6px}
-.global-nome-filter-clear:hover{color:var(--ink);background:var(--brand-soft)}
 .view[hidden]{display:none}
 
 /* Toolbar + filters */
@@ -297,7 +315,7 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    as mesmas larguras de coluna — sem isso cada uma calcularia sua largura
    "automática" separadamente e as colunas não bateriam uma embaixo da
    outra. */
-.prod-table{border-collapse:separate;border-spacing:0;width:100%;min-width:820px;font-size:13px;table-layout:fixed}
+.prod-table{border-collapse:separate;border-spacing:0;width:100%;min-width:820px;font-size:12.2px;table-layout:fixed}
 /* overflow:hidden + text-overflow:ellipsis aqui é rede de segurança: um
    título de coluna (ex.: "Dia sugerido p/ pedir") quase sempre é mais
    longo que o conteúdo típico daquela coluna (ex.: "Agora", uma data
@@ -308,7 +326,15 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    sem overflow:hidden o navegador pinta pra fora da célula em vez de
    cortar). Com isso, na pior das hipóteses o título só trunca com "…" —
    nunca mais sobrepõe a coluna do lado. */
-.prod-table thead th{background:var(--surface-2);color:var(--ink-2);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line-strong);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
+/* letter-spacing reduzido de .03em pra .01em: título de coluna em
+   caixa-alta já tem menos gente pedindo tracking grande quando o espaço
+   é curto — a cada título mais longo (ex.: "Prazo total (dias)"), essa
+   meia-margem a menos por letra soma alguns pixels a mais de sobra antes
+   de precisar truncar com "…". Título agora sempre centralizado (em vez
+   de left fixo) — antes o título ficava colado na borda esquerda da
+   coluna mesmo quando o conteúdo dela era numérico/centralizado, dando
+   uma sensação de desalinhamento entre cabeçalho e dado. */
+.prod-table thead th{background:var(--surface-2);color:var(--ink-2);font-size:10.2px;font-weight:800;text-transform:uppercase;letter-spacing:.01em;text-align:center;padding:11px 12px;border-bottom:1px solid var(--line-strong);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;user-select:none}
 .prod-table thead th:hover{color:var(--ink)}
 /* Toda célula de texto agora é nowrap + ellipsis com um teto de largura —
    antes só a coluna "Nome" (.col-strong) quebrava linha, e quando o resto
@@ -317,25 +343,36 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    usuário). Com max-width em toda coluna de texto, nada quebra linha mais:
    o que não cabe corta com "…", visível por completo no title (hover) e
    sempre dá pra ver o registro inteiro clicando na linha. */
-.prod-table tbody td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;color:var(--ink-2)}
+/* Centralizado por padrão (título e dado sempre alinhados um embaixo do
+   outro, em qualquer coluna) — a única exceção é .col-strong logo abaixo
+   (nome do produto/fornecedor), que continua à esquerda: é sempre a
+   coluna com o texto mais longo da linha, e nome comprido cortado com
+   "…" no meio/fim de um texto centralizado fica bem mais confuso de ler
+   do que cortado só do lado direito, como um texto à esquerda normal. */
+.prod-table tbody td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;color:var(--ink-2);text-align:center}
 .prod-table tbody tr{cursor:pointer;transition:background .1s}
 .prod-table tbody tr:hover{background:var(--brand-soft)}
 .prod-table tbody tr:nth-child(even){background:var(--surface-2)}
 .prod-table tbody tr:nth-child(even):hover{background:var(--brand-soft)}
 .prod-table tbody tr.row-dup,.prod-table tbody tr.row-dup:nth-child(even){background:rgba(245,169,19,.14)}
 .prod-table tbody tr.row-dup:hover,.prod-table tbody tr.row-dup:nth-child(even):hover{background:rgba(245,169,19,.26)}
-.prod-table .col-strong{font-weight:750;color:var(--ink);max-width:400px}
-.prod-table .col-num{text-align:right;font-variant-numeric:tabular-nums;max-width:none}
-/* "Valor por Classe" (Resumo): colunas bem largas (poucas, cheias de
-   espaço) deixavam os números encostados na borda direita, longe do
-   título da coluna lá em cima — confuso pra saber qual número era de
-   qual coluna. Centralizado, cabeçalho e número ficam alinhados um
-   embaixo do outro. Só nessa tabela — nas outras (Cadastro, Lançamentos,
-   Compras) tem muita coluna lado a lado, e alinhado à direita ainda é o
-   jeito mais fácil de comparar magnitude entre linhas. */
-#resumoClasseTableHead th,#resumoClasseTable td{text-align:center}
-#resumoClasseTableHead th:first-child,#resumoClasseTable td:first-child{text-align:left}
+.prod-table .col-strong{font-weight:750;color:var(--ink);max-width:400px;text-align:left}
+.prod-table .col-num{font-variant-numeric:tabular-nums;max-width:none}
+/* "Valor por Classe" (Resumo) já nasceu com cabeçalho e dado centralizados
+   (só a 1ª coluna, .col-strong, ficava à esquerda) — regra específica
+   removida porque virou redundante: os padrões acima (.prod-table tbody
+   td centralizado + .col-strong à esquerda) agora fazem exatamente a
+   mesma coisa em TODA tabela do painel, não só nesta. */
 .prod-table .col-actions{text-align:right;white-space:nowrap;max-width:none;overflow:visible}
+/* Espaçamento explícito entre os botões de ação (editar/remover/ver
+   lançamentos/ajustar) — antes dependia só do espaço em branco entre as
+   tags no template do JS virar espaço no HTML, que fica visualmente
+   apertado (ver captura: ícones quase colados um no outro) e ainda por
+   cima é frágil (qualquer ajuste na formatação do template some com
+   ele). button+button (em vez de mudar o display da célula, que quebraria
+   o alinhamento da tabela — <td> precisa continuar display:table-cell)
+   garante o respiro certo entre os ícones sem mexer no layout da tabela. */
+.prod-table .col-actions button+button{margin-left:6px}
 /* Coluna com conteúdo de largura própria fixa (checkbox, <select> com
    largura em CSS...) — não é número nem ação, mas do mesmo jeito não
    pode encolher no ajuste automático de largura (ver lockSplitTableWidths,
@@ -358,16 +395,38 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    largura efetiva de monitores comuns (1920×1080 e 1366×768) nessas
    escalas, não é um breakpoint "de dispositivo" qualquer. */
 @media(max-width:1600px){
-  .prod-table{font-size:12.5px}
+  .prod-table{font-size:11.8px}
   .prod-table thead th{padding:9px 9px}
   .prod-table tbody td{padding:8px 9px;max-width:260px}
   .prod-table .col-strong{max-width:320px}
 }
+/* Degrau intermediário (~1366-1440px, faixa comum de notebook) — sem ele
+   a fonte pulava direto de 12.5px pra 11.5px só abaixo de 1280px, e nessa
+   faixa de largura bem comum (notebook 14"/15" em 100% de escala) a
+   tabela ficava com espaço sobrando sem aproveitar pra manter um texto
+   um pouco maior/mais legível. */
+@media(max-width:1440px){
+  .prod-table{font-size:11.4px}
+  .prod-table thead th{padding:8.5px 8px}
+  .prod-table tbody td{padding:7px 8px;max-width:230px}
+  .prod-table .col-strong{max-width:290px}
+}
 @media(max-width:1280px){
-  .prod-table{font-size:11.5px;min-width:720px}
+  .prod-table{font-size:11px;min-width:720px}
   .prod-table thead th{padding:8px 7px}
   .prod-table tbody td{padding:6px 7px;max-width:200px}
   .prod-table .col-strong{max-width:260px}
+}
+/* Abaixo disso a tabela já rola na horizontal (min-width:720px acima
+   trava o piso) — aqui só reduz padding um pouco mais e mantém a fonte
+   no piso de 11px (WCAG recomenda evitar texto de corpo abaixo de
+   ~12px; ficamos bem perto disso mesmo no grau mais compacto, contando
+   com zoom do navegador pra quem precisar de mais — nunca menor que
+   isso, pra não virar ilegível). */
+@media(max-width:1024px){
+  .prod-table thead th{padding:7px 6px}
+  .prod-table tbody td{padding:6px 6px;max-width:180px}
+  .prod-table .col-strong{max-width:220px}
 }
 /* Etiqueta "fulano mexendo aqui agora" (estilo Planilhas Google) — some
    sozinha (fica vazia) quando ninguém mais está no registro, ver
@@ -395,12 +454,22 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 .status-box[data-disabled="true"]{opacity:.5;cursor:not-allowed;pointer-events:none}
 
 /* Dashboard KPI + panels */
-.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:12px;margin-bottom:8px}
+/* minmax reduzido de 205px pra 175px: em telas de notebook (1366/1280px de
+   largura), 205px por card deixava só 3-4 cards por linha antes de quebrar,
+   sobrando um card sozinho numa linha à toa. Com 175px cabe mais um card
+   por linha nessas resoluções, sem apertar demais em telas maiores (o 1fr
+   ainda estica os cards igual quando sobra espaço). */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:12px;margin-bottom:8px}
 .kpi{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px 16px;box-shadow:var(--shadow-sm);min-width:0}
 .kpi-icon{width:44px;height:44px;flex:none;border-radius:14px;display:grid;place-items:center;font-size:20px;background:var(--brand-soft)}
 .kpi-copy{min-width:0}
-.kpi-copy span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
-.kpi-copy strong{display:block;margin-top:2px;font-size:20px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kpi-copy span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* clamp() em vez de um tamanho fixo: valores grandes em R$ ("R$ 457.841,80")
+   num card que encolheu pra caber mais colunas numa tela estreita
+   estouravam a largura do card sem dar nenhum jeito de encolher — clamp
+   permite a fonte reduzir um pouco (até 16px) antes de precisar cortar
+   com ellipsis, o que só entra como último recurso. */
+.kpi-copy strong{display:block;margin-top:2px;font-size:clamp(16px,1.1vw + 11px,20px);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:820px){.dash-grid-2{grid-template-columns:1fr}}
 .dash-panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);min-width:0}
@@ -442,7 +511,12 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 :root[data-theme="dark"] .line-chart-tablebtn{color:var(--brand-light)}
 @media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .line-chart-tablebtn{color:var(--brand-light)}}
 .line-chart-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
-.line-chart-table th,.line-chart-table td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+/* white-space:nowrap explícito: sem ele, "R$ 5.534,83" (o espaço entre o
+   símbolo e o número no formato de moeda pt-BR do toLocaleString não é
+   sempre um espaço "preso") podia quebrar ali, deixando "R$" numa linha e
+   o valor sozinho na linha de baixo — a única tabela do painel que não
+   herdava o nowrap do .prod-table (essa é uma tabela solta, à parte). */
+.line-chart-table th,.line-chart-table td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .line-chart-table th:first-child,.line-chart-table td:first-child{text-align:left;color:var(--ink-2);font-variant-numeric:normal}
 
 /* Dialogs */
@@ -657,7 +731,30 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 .toast-modern{position:fixed;right:20px;bottom:20px;z-index:100;padding:14px 18px;border-radius:14px;background:var(--ink);color:var(--page);font-size:14px;font-weight:700;box-shadow:var(--shadow-lg);transform:translateY(20px);opacity:0;pointer-events:none;transition:.2s;max-width:min(360px,calc(100vw - 40px))}
 .toast-modern.show{transform:none;opacity:1}
 .toast-modern.error{background:var(--critical);color:#fff}
+/* Faixa de notebook/tela menor que 1920×1080 (1366/1280px de largura são
+   as mais comuns) — reduz só os respiros (gap/padding), sem empilhar nada
+   ainda (isso só acontece a partir de 720px abaixo) — o objetivo aqui é
+   sobrar mais espaço útil pro conteúdo sem a sensação de "cortado" que
+   vinha de manter os mesmos respiros generosos pensados pra tela cheia. */
+@media(max-width:1024px){
+  .shell{padding:20px 12px 16px}
+  .topbar{padding:12px 15px;gap:11px}
+  .location-tab{padding:9px 14px;font-size:13.5px}
+  .filter-bar{gap:10px 12px}
+  .table-toolbar{gap:8px}
+}
 @media(max-width:720px){.topbar{padding:12px 14px}.shell{padding:16px 14px 40px}.actions{width:100%}.topbar-status{width:100%;justify-content:space-between}}
+/* Telas de celular (retrato) — dashboard e filtros viram coluna única em
+   vez de tentar espremer grid, e os botões de ação ganham um pouco mais
+   de área de toque (WCAG 2.5.8 recomenda 24px mínimo; aqui já eram 32px,
+   sobem pra 36px só nessa faixa, onde o dedo é o ponteiro). */
+@media(max-width:560px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .dash-grid-2{grid-template-columns:1fr}
+  .filter-bar{grid-template-columns:1fr}
+  .mini-toggle,.mini-edit,.mini-remove,.mini-adjust{width:36px;height:36px}
+  .mini-toggle svg,.mini-edit svg,.mini-remove svg,.mini-adjust svg{width:16px;height:16px}
+}
 
 /* Compras */
 .toolbar-check{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:650;color:var(--ink-2);white-space:nowrap}
@@ -736,6 +833,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 </style>
 </head>
 <body class="auth-locked">
+<a href="#shell" class="skip-link">Pular para o conteúdo</a>
 <div class="boot-loading" id="bootLoading" hidden><div class="boot-spinner"></div><p>Carregando estoque…</p></div>
 
 <dialog id="authDialog" class="auth-dialog">
@@ -768,11 +866,11 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <div class="brand"><div class="brand-mark"><img src="icon.png" alt=""></div><div><h1>Estoque de Produtos</h1><p>Sede · Oásis · Estufa</p></div></div>
     <div class="topbar-status">
       <div class="online-bar" id="onlineBar" title="Quem está online agora"></div>
-      <button type="button" class="btn btn-icon-only" id="undoBtn" title="Desfazer (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
-      <button type="button" class="btn btn-icon-only" id="redoBtn" title="Refazer (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
+      <button type="button" class="btn btn-icon-only" id="undoBtn" title="Desfazer (Ctrl+Z)" aria-label="Desfazer última alteração" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
+      <button type="button" class="btn btn-icon-only" id="redoBtn" title="Refazer (Ctrl+Y)" aria-label="Refazer alteração desfeita" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
       <div class="cloud-badge" id="cloudBadge"><span class="dot"></span><span id="cloudText">Conectando…</span></div>
-      <button type="button" class="btn btn-icon-only" id="zoomFixBtn" hidden title="Sua tela parece estar com escala/zoom do Windows fracionado (ex.: 125%, 150%) — isso pode deixar a tabela com colunas levemente desalinhadas. Clique pra ajustar o zoom da página automaticamente e corrigir."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
-      <button type="button" class="btn btn-icon-only" id="themeBtn" title="Alternar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
+      <button type="button" class="btn btn-icon-only" id="zoomFixBtn" hidden aria-label="Corrigir zoom da tela" title="Sua tela parece estar com escala/zoom do Windows fracionado (ex.: 125%, 150%) — isso pode deixar a tabela com colunas levemente desalinhadas. Clique pra ajustar o zoom da página automaticamente e corrigir."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+      <button type="button" class="btn btn-icon-only" id="themeBtn" title="Alternar tema" aria-label="Alternar entre tema claro e escuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
     </div>
     <div class="actions">
       <button type="button" class="btn btn-soft" id="usersBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Usuários</span></button>
@@ -791,11 +889,6 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <button type="button" class="sub-tab" data-tab="relatorio">Relatório</button>
     <button type="button" class="sub-tab" data-tab="fornecedores">Fornecedores</button>
   </nav>
-  <div class="global-nome-filter" id="globalNomeFilterBar" title="Filtra por nome do produto em todas as abas (Resumo, Cadastro, Lançamentos, Compras e Relatório) — fica ativo mesmo trocando de aba ou de local.">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-    <input type="search" id="globalNomeFilterInput" placeholder="Buscar produto pelo nome em todas as abas...">
-    <button type="button" class="global-nome-filter-clear" id="globalNomeFilterClear" hidden aria-label="Limpar filtro">×</button>
-  </div>
   </div>
 
   <section id="viewResumo" class="view" hidden></section>
@@ -837,6 +930,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="filter-field"><label for="cadastroMediaPeriodo" title="Período usado pra calcular a média semanal de uso a partir das saídas lançadas">Média calc.</label><select id="cadastroMediaPeriodo"></select></div>
       <div class="filter-bar-actions">
         <label class="toolbar-check" title="Junta todas as fichas com o mesmo nome (de NFEs/fornecedores diferentes) numa linha só, somando estoque e valor."><input type="checkbox" id="cadastroAgruparNome"> Agrupar por nome</label>
+        <label class="toolbar-check" title="Mostra as colunas NCM e CST na tabela — informação fiscal usada só por quem lida com nota fiscal, escondida por padrão pra tabela ficar mais enxuta."><input type="checkbox" id="cadastroMostrarFiscal"> Mostrar NCM/CST</label>
         <button type="button" class="btn" id="cadastroClearFiltersBtn">Limpar filtros</button>
         <button type="button" class="btn btn-primary" id="addProductBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Novo produto</span></button>
       </div>
@@ -1817,17 +1911,6 @@ function loadState(){
 }
 let state=loadState();
 let activeLocation='sede', activeTab='cadastro';
-/* Filtro global por nome do produto (barra fixa no topo, ver
-   #globalNomeFilterBar) — ao contrário dos filtros "Buscar" de cada aba
-   (comprasFilters.search etc., que resetam ao trocar de aba porque cada
-   um é um estado independente), este é UM estado só, lido por
-   renderResumo/renderCadastro/renderLancamentos/renderCompras/
-   renderRelatorio, então permanece aplicado trocando de aba ou de
-   local. */
-let nomeFiltroGlobal='';
-function passaNomeFiltroGlobal(nome){
-  return !nomeFiltroGlobal||normalizeTexto(nome).includes(normalizeTexto(nomeFiltroGlobal));
-}
 /* ── Desfazer / Refazer (Ctrl+Z / Ctrl+Y, estilo Planilhas) ──────────
    Não é um histórico de comandos individuais — é uma "foto" do estado
    inteiro (locations + fornecedores, sem o log de auditoria) tirada
@@ -2736,6 +2819,11 @@ async function confirmRemoverTodosLancamentosProduto(locId,produtoId){
 /* ── Renderização ────────────────────────────────────────────────── */
 let cadastroSort={col:'nome',dir:1}, cadastroFilters={search:'',classe:null,status:new Set(['Sendo Utilizado']),nomeExato:'',nome:null};
 let cadastroGroupSort={col:'nome',dir:1}, cadastroGroupByName=false;
+/* NCM/CST só interessam a quem mexe com nota fiscal — ficam escondidas
+   por padrão pra tabela do Cadastro não competir espaço/atenção com as
+   colunas do dia a dia; o checkbox "Mostrar NCM/CST" no topo da aba
+   revela as duas na hora, sem precisar recarregar nada. */
+let cadastroMostrarFiscal=false;
 let lancSort={col:'data',dir:-1}, lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:'',nome:null}, lancPage=0;
 const LANC_PAGE_SIZE=50;
 let fornecedorFilters={nome:'',nomeFantasia:'',cnpj:'',cpf:'',telefone:'',email:'',contato:'',endereco:'',duplicados:false};
@@ -3176,7 +3264,6 @@ function renderResumo(){
   let products=productsOf(locId);
   if(resumoFilters.classe)products=products.filter(p=>resumoFilters.classe.has(p.classe));
   if(resumoFilters.status)products=products.filter(p=>resumoFilters.status.has(p.status));
-  if(nomeFiltroGlobal)products=products.filter(p=>passaNomeFiltroGlobal(p.nome));
   const filteredIds=new Set(products.map(p=>p.id));
 
   const valorTotal=products.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
@@ -3262,6 +3349,7 @@ function renderCadastro(){
   wireMultiselect('cadastroFilterStatus',STATUS_ALL,()=>cadastroFilters.status,v=>cadastroFilters.status=v,renderCadastro);
   document.getElementById('cadastroMediaPeriodo').innerHTML=mediaPeriodoOptionsHtml();
   document.getElementById('cadastroAgruparNome').checked=cadastroGroupByName;
+  document.getElementById('cadastroMostrarFiscal').checked=cadastroMostrarFiscal;
 
   const chip=document.getElementById('cadastroFilterChip');
   if(cadastroFilters.nomeExato){
@@ -3279,7 +3367,6 @@ function renderCadastro(){
   if(cadastroFilters.status)list=list.filter(p=>cadastroFilters.status.has(p.status));
   if(cadastroFilters.nome)list=list.filter(p=>cadastroFilters.nome.has(p.nome));
   if(cadastroFilters.nomeExato)list=list.filter(p=>p.nome===cadastroFilters.nomeExato);
-  if(nomeFiltroGlobal)list=list.filter(p=>passaNomeFiltroGlobal(p.nome));
 
   const valorTotalFiltrado=list.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
   const estoqueTotalFiltrado=list.reduce((s,p)=>s+(Number(p.estoque)||0),0);
@@ -3301,13 +3388,14 @@ function renderCadastro(){
   });
   const cols=[['data','Data'],['nfeId','NFE/ID'],['fornecedor','Fornecedor'],['classe','Classe'],['nome','ID do Produto'],
     ['estoque','Estoque'],['valorUnitario','Valor Unit.'],['valorTotal','Valor Total'],['tipo','Tipo'],['status','Status'],
-    ['mediaEfetiva',`Média US/Sem. (${mediaSemanalPeriodo}d)`],['ncm','NCM'],['cst','CST']];
+    ['mediaEfetiva',`Média US/Sem. (${mediaSemanalPeriodo}d)`]];
+  if(cadastroMostrarFiscal)cols.push(['ncm','NCM'],['cst','CST']);
   const thead=`<tr>${cols.map(([key,label])=>`<th data-sort="${key}">${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
   const rowsHtml=list.map(p=>`<tr data-id="${p.id}">
     <td>${fmtDate(p.data)}</td><td title="${esc(p.nfeId)}">${esc(p.nfeId)}</td><td title="${esc(p.fornecedor)}">${esc(fornecedorExibicao(p.fornecedor))}</td><td title="${esc(p.classe)}">${esc(p.classe)}</td>
     <td class="col-strong" title="${esc(p.nome)}">${esc(p.nome)}<span data-presence-produto="${p.id}"></span></td><td class="col-num">${fmtNum(p.estoque)}</td><td class="col-num">${fmtMoney(p.valorUnitario)}</td>
     <td class="col-num">${fmtMoney(p.valorTotal)}</td><td>${esc(p.tipo)}</td><td class="col-status">${statusChip(p.status)}</td>
-    <td class="col-num">${fmtNum(p.mediaEfetiva)}${p.mediaEfetivaCalculada?'':(p.mediaEfetiva>0?' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>':'')}</td><td>${esc(p.ncm)}</td><td>${esc(p.cst)}</td>
+    <td class="col-num">${fmtNum(p.mediaEfetiva)}${p.mediaEfetivaCalculada?'':(p.mediaEfetiva>0?' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>':'')}</td>${cadastroMostrarFiscal?`<td>${esc(p.ncm)}</td><td>${esc(p.cst)}</td>`:''}
     <td class="col-actions">
       <button type="button" class="mini-adjust" data-adjust-stock="${p.id}" title="Ajustar estoque">${ICON_ADJUST}</button>
       <button type="button" class="mini-toggle" data-view-entries="${p.id}" title="Ver lançamentos">${ICON_LIST}</button>
@@ -3315,7 +3403,7 @@ function renderCadastro(){
       <button type="button" class="mini-remove" data-remove-product="${p.id}" title="Remover">${ICON_TRASH}</button>
     </td></tr>`).join('');
   document.getElementById('cadastroTableHead').innerHTML=`<thead>${thead}</thead>`;
-  document.getElementById('cadastroTable').innerHTML=`<tbody>${rowsHtml||`<tr><td colspan="14" class="empty-row">Nenhum produto cadastrado ainda neste local.</td></tr>`}</tbody>`;
+  document.getElementById('cadastroTable').innerHTML=`<tbody>${rowsHtml||`<tr><td colspan="${cols.length+1}" class="empty-row">Nenhum produto cadastrado ainda neste local.</td></tr>`}</tbody>`;
   syncSplitTable('cadastroTable');
   wireCadastroTableEvents();
 }
@@ -3414,7 +3502,6 @@ function renderLancamentos(){
     const q=lancFilters.search.toLowerCase();
     list=list.filter(e=>{const p=locState(locId).products[e.produtoId];return [p?p.nome:'',e.fornecedor,e.nfeId,e.classe,e.ciclo].some(v=>String(v||'').toLowerCase().includes(q))});
   }
-  if(nomeFiltroGlobal)list=list.filter(e=>passaNomeFiltroGlobal((locState(locId).products[e.produtoId]||{}).nome));
 
   let qtdEntrada=0,valorEntrada=0,qtdSaida=0,valorSaida=0;
   const nomesEntrada=new Set(),nomesSaida=new Set();
@@ -3833,7 +3920,6 @@ function renderCompras(){
   if(comprasFilters.status)rows=rows.filter(r=>[...r.statusSet].some(s=>comprasFilters.status.has(s)));
   if(comprasFilters.nome)rows=rows.filter(r=>comprasFilters.nome.has(r.nome));
   if(comprasFilters.somenteAlerta)rows=rows.filter(r=>r.info.diasAteSolicitar<=14);
-  if(nomeFiltroGlobal)rows=rows.filter(r=>passaNomeFiltroGlobal(r.nome));
   rows.sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
   const visibleNomes=new Set(rows.map(r=>r.nome));
   [...comprasSelected].forEach(nome=>{if(!visibleNomes.has(nome))comprasSelected.delete(nome)});
@@ -4125,7 +4211,6 @@ function relatorioEstoqueFiltrado(locId){
   if(relatorioFiltroStatus)products=products.filter(p=>relatorioFiltroStatus.has(p.status));
   if(relatorioFiltroClasse)products=products.filter(p=>relatorioFiltroClasse.has(p.classe));
   if(relatorioFiltroNome)products=products.filter(p=>relatorioFiltroNome.has(p.nome));
-  if(nomeFiltroGlobal)products=products.filter(p=>passaNomeFiltroGlobal(p.nome));
   return products;
 }
 function buildRelatorioHtml(locId){
@@ -4141,7 +4226,6 @@ function buildRelatorioHtml(locId){
     const p=locState(locId).products[e.produtoId];
     if(relatorioFiltroClasse&&(!p||!relatorioFiltroClasse.has(p.classe)))return false;
     if(relatorioFiltroNome&&(!p||!relatorioFiltroNome.has(p.nome)))return false;
-    if(nomeFiltroGlobal&&!passaNomeFiltroGlobal(p?p.nome:''))return false;
     return true;
   });
   const valorTotalGeral=products.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
@@ -5116,18 +5200,6 @@ function boot(){
 
 /* ── Wiring estático (rodado uma vez, elementos já existem no HTML) ── */
 document.querySelectorAll('#subTabs .sub-tab').forEach(btn=>btn.onclick=()=>switchTab(btn.dataset.tab));
-document.getElementById('globalNomeFilterInput').oninput=e=>{
-  nomeFiltroGlobal=e.target.value;
-  document.getElementById('globalNomeFilterClear').hidden=!nomeFiltroGlobal;
-  renderActiveTab();
-};
-document.getElementById('globalNomeFilterClear').onclick=()=>{
-  nomeFiltroGlobal='';
-  const inp=document.getElementById('globalNomeFilterInput');
-  inp.value='';inp.focus();
-  document.getElementById('globalNomeFilterClear').hidden=true;
-  renderActiveTab();
-};
 document.getElementById('cadastroSearch').oninput=e=>{cadastroFilters.search=e.target.value;renderCadastro()};
 document.getElementById('addProductBtn').onclick=()=>openProductDialog();
 document.getElementById('productSaveNextBtn').onclick=()=>saveProductFormAndNext();
@@ -5135,6 +5207,7 @@ document.getElementById('productCorrigirValorBtn').onclick=()=>corrigirValorUnit
 document.getElementById('productAddCustoBtn').onclick=()=>addCustoRow();
 document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:'',nome:null};document.getElementById('cadastroSearch').value='';renderCadastro()};
 document.getElementById('cadastroAgruparNome').onchange=e=>{cadastroGroupByName=e.target.checked;if(cadastroGroupByName)cadastroFilters.nomeExato='';renderCadastro()};
+document.getElementById('cadastroMostrarFiscal').onchange=e=>{cadastroMostrarFiscal=e.target.checked;renderCadastro()};
 document.getElementById('lancSearch').oninput=e=>{lancFilters.search=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('lancFilterTipo').onchange=e=>{lancFilters.tipo=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('addEntryBtn').onclick=()=>openEntryDialog();
