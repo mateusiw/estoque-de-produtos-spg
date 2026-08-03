@@ -158,6 +158,16 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 .sub-tab.active{color:var(--brand-dark);border-bottom-color:var(--brand)}
 :root[data-theme="dark"] .sub-tab.active{color:var(--brand-light)}
 @media(prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .sub-tab.active{color:var(--brand-light)}}
+/* Filtro global por nome do produto, fixo no cabeçalho — diferente dos
+   campos "Buscar" de cada aba (que filtram vários campos só daquela
+   aba), este só olha o nome e vale pras 5 abas de produto ao mesmo
+   tempo, sem resetar ao trocar de aba/local. */
+.global-nome-filter{display:flex;align-items:center;gap:9px;margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--muted);transition:border-color .15s,box-shadow .15s,background .15s}
+.global-nome-filter:focus-within{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--surface)}
+.global-nome-filter svg{flex:none;width:17px;height:17px}
+.global-nome-filter input{flex:1;min-width:0;border:0;background:transparent;outline:none;font-size:14px;color:var(--ink)}
+.global-nome-filter-clear{flex:none;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:19px;line-height:1;padding:2px 4px;border-radius:6px}
+.global-nome-filter-clear:hover{color:var(--ink);background:var(--brand-soft)}
 .view[hidden]{display:none}
 
 /* Toolbar + filters */
@@ -703,6 +713,11 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <button type="button" class="sub-tab" data-tab="relatorio">Relatório</button>
     <button type="button" class="sub-tab" data-tab="fornecedores">Fornecedores</button>
   </nav>
+  <div class="global-nome-filter" id="globalNomeFilterBar" title="Filtra por nome do produto em todas as abas (Resumo, Cadastro, Lançamentos, Compras e Relatório) — fica ativo mesmo trocando de aba ou de local.">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input type="search" id="globalNomeFilterInput" placeholder="Buscar produto pelo nome em todas as abas...">
+    <button type="button" class="global-nome-filter-clear" id="globalNomeFilterClear" hidden aria-label="Limpar filtro">×</button>
+  </div>
   </div>
 
   <section id="viewResumo" class="view" hidden></section>
@@ -775,7 +790,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
     <div class="dialog-head"><div><h3 id="productDialogTitle">Novo produto</h3><p>Cadastro mestre do produto/insumo. O estoque é calculado a partir dos lançamentos.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
     <div class="dialog-body">
       <p class="dialog-alert" id="productAlert" hidden></p>
-      <div class="field combo"><label for="productNome">ID do produto<span class="help-icon" tabindex="0">?<span class="tooltip">Nome usado como identificador do produto. Escolha um já cadastrado na lista pra manter a grafia idêntica (importante pro "Agrupar por nome" somar certinho) ou digite um nome novo. Comprou de novo o mesmo produto, com NFE/fornecedor/valor diferente? Sem problema — escolha o nome existente e salve como ficha nova; cada compra vira uma ficha própria, e "Agrupar por nome" no Cadastro mostra o total somado de todas.</span></span></label><input id="productNome" class="combo-input" autocomplete="off" maxlength="120" placeholder="Ex.: ETIQUETA COUVELITOS" required><div class="combo-panel" id="productNomePanel" hidden></div></div>
+      <div class="field combo"><label for="productNome">ID do produto<span class="help-icon" tabindex="0">?<span class="tooltip">Nome usado como identificador do produto. Escolha um já cadastrado na lista pra manter a grafia idêntica (importante pro "Agrupar por nome" somar certinho) ou digite um nome novo. Comprou de novo o mesmo produto, com NFE/fornecedor/valor diferente? Sem problema — escolha o nome existente e salve como ficha nova; cada compra vira uma ficha própria, e "Agrupar por nome" no Cadastro mostra o total somado de todas. Média de uso, prazo de entrega, margem de atraso e estoque-alvo (mais abaixo) são compartilhados entre todas as fichas deste nome — editar numa reflete nas outras, e a aba Compras já soma o estoque de todas numa sugestão só.</span></span></label><input id="productNome" class="combo-input" autocomplete="off" maxlength="120" placeholder="Ex.: ETIQUETA COUVELITOS" required><div class="combo-panel" id="productNomePanel" hidden></div></div>
       <div class="dialog-body-grid">
         <div class="field"><label for="productData">Data<span class="help-icon" tabindex="0">?<span class="tooltip">Data de referência desta ficha (normalmente a data da compra/NFE). Só serve pra ordenar — não entra em nenhum cálculo de estoque ou de compra.</span></span></label><input id="productData" type="date"></div>
         <div class="field combo"><label for="productFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta ficha específica. Precisa estar cadastrado na aba Fornecedores pra aparecer na lista — os dados dele (telefone, endereço, e-mail) aparecem automaticamente na solicitação de compra impressa.</span></span></label><select id="productFornecedor" hidden></select><input type="text" id="productFornecedorSearch" name="productFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="productFornecedorPanel" hidden></div><span class="field-help">Não achou? Cadastre na aba <strong>Fornecedores</strong>.</span></div>
@@ -783,15 +798,21 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
         <div class="field combo"><label for="productTipo">Tipo (unidade de medida)<span class="help-icon" tabindex="0">?<span class="tooltip">Unidade de contagem do produto. Escolha uma da lista ou digite a sua, se a que você precisa não estiver nela. Só informativo — aparece nas tabelas e na solicitação de compra, mas não muda nenhum cálculo.</span></span></label><input id="productTipo" class="combo-input" autocomplete="off" maxlength="40" placeholder="Ex.: Unidade, Caixa, Kg..."><div class="combo-panel" id="productTipoPanel" hidden></div></div>
         <div class="field"><label for="productValorUnitario">Valor unitário<span class="help-icon" tabindex="0">?<span class="tooltip">Preço de custo real da nota fiscal desta ficha. Multiplicado pela quantidade lançada calcula o Valor Total. Calculado sozinho a partir de "Valor total da nota" ÷ "Quantidade que já entrou" — trava pra digitação direta de propósito, pra nunca ficar um valor arredondado na mão em vez do valor exato. Depois do primeiro lançamento continua travado; use "Corrigir valor da nota" mais abaixo se precisar acertar o valor de uma ficha que já tem lançamento.</span></span></label><div class="money-input"><span>R$</span><input id="productValorUnitario" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"></div><span class="field-help" id="productValorUnitarioNote" hidden>Valor da nota fiscal — travado depois do primeiro lançamento.</span></div>
         <div class="field" id="productValorNotaField"><label for="productValorNota">Valor total deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quanto esse produto especificamente custou na nota — não o total da nota inteira. Se a nota tiver vários produtos diferentes (mesma NFE, valores diferentes), cadastre uma ficha pra cada um e preencha aqui só o subtotal daquele item (valor dele × quantidade dele), não a soma de tudo. Preenchido junto com "Quantidade que já entrou", o painel calcula sozinho o Valor unitário exato — valor ÷ quantidade, com mais casas decimais do que cabe num preço arredondado. Sem nota fiscal? Deixe em branco — o produto é cadastrado e o estoque é controlado normalmente, só fica sem custo registrado. Campo só de apoio pro cálculo, não é salvo.</span></span></label><div class="money-input"><span>R$</span><input id="productValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this);calcValorUnitarioProduto()"></div></div>
+        <div class="field" id="productCustosField" style="grid-column:1 / -1">
+          <label>Custos adicionais (frete, embalagem, matéria-prima...)<span class="help-icon" tabindex="0">?<span class="tooltip">Some ao "Valor total deste item na nota" pra compor o custo real deste produto — frete cobrado numa nota separada, embalagem, matéria-prima usada só nesta compra etc. Cada linha pode ter seu próprio número de NFE/nota, pra rastrear depois de onde veio cada parcela. Entra direto no cálculo do Valor unitário (valor da nota + soma destes custos, tudo dividido pela quantidade) e fica salvo na ficha — dá pra reabrir depois e ver de onde veio o valor.</span></span></label>
+          <div id="productCustosList"></div>
+          <button type="button" class="btn btn-soft" id="productAddCustoBtn" style="margin-top:4px">+ Adicionar custo</button>
+          <p class="field-help" id="productCustosTotalNote"></p>
+        </div>
         <div class="field" id="productEntradaInicialField"><label for="productEntradaInicial">Quantidade que já entrou<span class="help-icon" tabindex="0">?<span class="tooltip">Se esse produto já chegou com uma quantidade em mãos, informe aqui — ao salvar, o painel lança sozinho uma entrada de estoque com essa quantidade (usando a data, fornecedor e valor unitário desta ficha), sem precisar abrir a aba Lançamentos separadamente. Deixe em branco pra cadastrar só a ficha, sem estoque ainda.</span></span></label><input id="productEntradaInicial" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioProduto()"></div>
         <div class="field" id="productCorrigirValorNotaField" hidden><label for="productCorrigirValorNota">Corrigir: valor deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Pra acertar o Valor unitário de uma ficha que já tem lançamento (ex.: foi cadastrado arredondado e agora você tem o valor certo). Preencha aqui só o valor deste produto específico na nota (não o total da nota inteira, se ela tiver outros produtos junto) e a quantidade dele ao lado, depois clique em "Recalcular e corrigir lançamentos". Isso reescreve o valor unitário/total do Valor unitário desta ficha E de todos os lançamentos (entradas e saídas) já feitos nela, pra tudo ficar consistente com o valor certo.</span></span></label><div class="money-input"><span>R$</span><input id="productCorrigirValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this)"></div></div>
         <div class="field" id="productCorrigirQtdField" hidden><label for="productCorrigirQtd">Quantidade que veio nessa nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade total que chegou nesta nota fiscal — não é o estoque atual (que já pode ter sido consumido), é a quantidade original da compra. Vem preenchida sozinha com a soma de todas as Entradas já lançadas nessa ficha; ajuste se não bater.</span></span></label><input id="productCorrigirQtd" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
         <div class="field" id="productCorrigirBtnField" hidden style="grid-column:1 / -1"><button type="button" class="btn" id="productCorrigirValorBtn">Recalcular e corrigir lançamentos</button></div>
-        <div class="field"><label for="productMediaUso">Média US/semanal manual<span class="help-icon" tabindex="0">?<span class="tooltip">O painel prefere sempre calcular a média de uso sozinho, a partir das saídas realmente lançadas dentro do período escolhido no filtro "Média calc.". Este número manual só é usado quando não há nenhuma saída lançada nesse período — produto novo ou de uso raro.</span></span></label><input id="productMediaUso" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
-        <div class="field"><label for="productTempoEntregaPronto">Prazo de entrega se pronto (dias)<span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva pra entregar quando já tem o produto pronto/em estoque dele. Some com a Margem de atraso pra formar o "prazo total"; se o prazo de produção também estiver preenchido, o cálculo usa sempre o maior dos dois, pra cobrir o pior caso.</span></span></label><input id="productTempoEntregaPronto" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productTempoEntregaProducao">Prazo de entrega se precisar produzir (dias)<span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva quando precisa produzir/fabricar antes de entregar (ex.: sob encomenda). Some com a Margem de atraso pra formar o "prazo total"; o cálculo de quando e quanto comprar usa sempre o maior valor entre este e o "se pronto", pra não arriscar ficar sem estoque.</span></span></label><input id="productTempoEntregaProducao" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productMargemAtraso">Margem de atraso (dias)<span class="help-icon" tabindex="0">?<span class="tooltip">Dias extras de folga pra cobrir a chance do fornecedor atrasar. Somado ao prazo de entrega (o maior entre "se pronto" e "se precisar produzir"), empurra o dia sugerido pra pedir a compra pra mais cedo, como margem de segurança.</span></span></label><input id="productMargemAtraso" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productEstoqueAlvo">Estoque-alvo extra (semanas)<span class="help-icon" tabindex="0">?<span class="tooltip">Quantas semanas de estoque extra (além do prazo de entrega + atraso) você quer ter sobrando depois que a compra chegar. Aumenta a quantidade sugerida de compra pra deixar essa folga.</span></span></label><input id="productEstoqueAlvo" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueAlvoNota()"><span class="field-help" id="productEstoqueAlvoNote">= 0 dias</span></div>
+        <div class="field"><label for="productMediaUso">Média US/semanal manual <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">O painel prefere sempre calcular a média de uso sozinho, a partir das saídas realmente lançadas dentro do período escolhido no filtro "Média calc.". Este número manual só é usado quando não há nenhuma saída lançada nesse período — produto novo ou de uso raro. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMediaUso" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
+        <div class="field"><label for="productTempoEntregaPronto">Prazo de entrega se pronto (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva pra entregar quando já tem o produto pronto/em estoque dele. Some com a Margem de atraso pra formar o "prazo total"; se o prazo de produção também estiver preenchido, o cálculo usa sempre o maior dos dois, pra cobrir o pior caso. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaPronto" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field"><label for="productTempoEntregaProducao">Prazo de entrega se precisar produzir (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva quando precisa produzir/fabricar antes de entregar (ex.: sob encomenda). Some com a Margem de atraso pra formar o "prazo total"; o cálculo de quando e quanto comprar usa sempre o maior valor entre este e o "se pronto", pra não arriscar ficar sem estoque. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaProducao" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field"><label for="productMargemAtraso">Margem de atraso (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Dias extras de folga pra cobrir a chance do fornecedor atrasar. Somado ao prazo de entrega (o maior entre "se pronto" e "se precisar produzir"), empurra o dia sugerido pra pedir a compra pra mais cedo, como margem de segurança. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMargemAtraso" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field"><label for="productEstoqueAlvo">Estoque-alvo extra (semanas) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantas semanas de estoque extra (além do prazo de entrega + atraso) você quer ter sobrando depois que a compra chegar. Aumenta a quantidade sugerida de compra pra deixar essa folga. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productEstoqueAlvo" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueAlvoNota()"><span class="field-help" id="productEstoqueAlvoNote">= 0 dias</span></div>
         <div class="field"><label>Status<span class="help-icon" tabindex="0">?<span class="tooltip">Situação de uso do produto. Vira "Concluído" sozinho quando o estoque chega a 0 (não dá pra editar nessa hora); enquanto tiver estoque, escolha uma das caixas abaixo.</span></span></label><select id="productStatus" hidden></select><div class="status-box-group" id="productStatusBoxes"></div><span class="field-help" id="productStatusNote" hidden>Vira "Concluído" automaticamente quando o estoque chegar a 0.</span></div>
         <div class="field"><label for="productNcm">NCM<span class="help-icon" tabindex="0">?<span class="tooltip">Código fiscal do produto (Nomenclatura Comum do Mercosul), se você usa isso pra nota fiscal. Só informativo, não afeta o painel.</span></span></label><input id="productNcm" maxlength="20"></div>
         <div class="field"><label for="productCst">CST<span class="help-icon" tabindex="0">?<span class="tooltip">Código de Situação Tributária, se precisar registrar pra nota fiscal. Só informativo, não afeta o painel.</span></span></label><input id="productCst" maxlength="20"></div>
@@ -1647,7 +1668,12 @@ function confirmModern(message,{confirmText='Remover',title='Confirmar ação'}=
 }
 
 /* ── Estado local ────────────────────────────────────────────────── */
-function emptyLocation(){return {products:{},entries:{}}}
+/* produtoConfig: configuração de compra COMPARTILHADA entre todas as
+   fichas do mesmo nome (prazo/margem/estoque-alvo/média manual/overrides
+   da aba Compras) — indexada por nome do produto, ao contrário de
+   products/entries que são por ficha/lançamento. Ver salvarProdutoConfig/
+   configDoProduto e fetchProdutoConfig mais abaixo. */
+function emptyLocation(){return {products:{},entries:{},produtoConfig:{}}}
 function freshState(){return {version:1,locations:{sede:emptyLocation(),oasis:emptyLocation(),estufa:emptyLocation()},fornecedores:{},log:[],updatedAt:new Date().toISOString()}}
 function loadState(){
   try{
@@ -1662,6 +1688,17 @@ function loadState(){
 }
 let state=loadState();
 let activeLocation='sede', activeTab='cadastro';
+/* Filtro global por nome do produto (barra fixa no topo, ver
+   #globalNomeFilterBar) — ao contrário dos filtros "Buscar" de cada aba
+   (comprasFilters.search etc., que resetam ao trocar de aba porque cada
+   um é um estado independente), este é UM estado só, lido por
+   renderResumo/renderCadastro/renderLancamentos/renderCompras/
+   renderRelatorio, então permanece aplicado trocando de aba ou de
+   local. */
+let nomeFiltroGlobal='';
+function passaNomeFiltroGlobal(nome){
+  return !nomeFiltroGlobal||normalizeTexto(nome).includes(normalizeTexto(nomeFiltroGlobal));
+}
 /* ── Desfazer / Refazer (Ctrl+Z / Ctrl+Y, estilo Planilhas) ──────────
    Não é um histórico de comandos individuais — é uma "foto" do estado
    inteiro (locations + fornecedores, sem o log de auditoria) tirada
@@ -1725,6 +1762,29 @@ function recordOp(locId,collectionKey,id,value){
     return supabase.from(table).upsert(payload).then(({error})=>{if(error)toast('Erro ao salvar: '+error.message,true)});
   }).finally(()=>{if(recordOpChains[key]===propria)delete recordOpChains[key]});
   recordOpChains[key]=propria;
+  return propria;
+}
+const PRODUTO_CONFIG_VAZIA={tempoEntregaProntoDias:0,tempoEntregaProducaoDias:0,margemAtrasoDias:0,estoqueAlvoSemanas:0,mediaUsoSemanal:0,compraQtdOverride:null,compraPrecoOverride:null,compraProntoOverride:null};
+/* Config de compra do produto (prazo/margem/estoque-alvo/média manual +
+   overrides da aba Compras) é compartilhada por NOME entre todas as
+   fichas — não tem "id" de linha único, a chave é (loc, nome). Por isso
+   não reaproveita recordOp/SUPABASE_TABELA (feitos pra upsert por id):
+   grava direto, encadeando por loc+nome do mesmo jeito que recordOp
+   encadeia por tabela+id (evita corrida entre dois saves seguidos do
+   mesmo produto). */
+let produtoConfigChains={};
+function configDoProduto(locId,nome){
+  return locState(locId).produtoConfig[nome]||PRODUTO_CONFIG_VAZIA;
+}
+function salvarProdutoConfig(locId,nome,patch){
+  if(!nome)return;
+  const novo={...PRODUTO_CONFIG_VAZIA,...configDoProduto(locId,nome),...patch,loc:locId,nome,updatedAt:new Date().toISOString()};
+  locState(locId).produtoConfig[nome]=novo;
+  const key=locId+':'+nome;
+  const anterior=produtoConfigChains[key]||Promise.resolve();
+  const propria=anterior.then(()=>supabase.from('produto_config').upsert(novo).then(({error})=>{if(error)toast('Erro ao salvar configuração de compra: '+error.message,true)}))
+    .finally(()=>{if(produtoConfigChains[key]===propria)delete produtoConfigChains[key]});
+  produtoConfigChains[key]=propria;
   return propria;
 }
 function saveState(){
@@ -1851,14 +1911,6 @@ function locState(id){state.locations[id]=state.locations[id]||emptyLocation();r
 function productsOf(id){return Object.values(locState(id).products)}
 function entriesOf(id){return Object.values(locState(id).entries)}
 function entriesForProduct(id,productId){return entriesOf(id).filter(e=>e.produtoId===productId)}
-/* Última movimentação de Entrada de um produto (data mais recente; empate
-   por createdAt) — usado na hora de gerar uma compra pra mostrar o preço e
-   a quantidade da última vez que ele entrou no estoque, como referência. */
-function ultimaEntradaProduto(locId,produtoId){
-  const entradas=entriesForProduct(locId,produtoId).filter(e=>Number(e.entrada)>0);
-  if(!entradas.length)return null;
-  return entradas.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')))[0];
-}
 function classesUsed(id){return [...new Set(productsOf(id).map(p=>p.classe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function nomesProdutoUsados(id){return [...new Set(productsOf(id).map(p=>p.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function ciclosUsed(id){return [...new Set(entriesOf(id).map(e=>e.ciclo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
@@ -1989,7 +2041,15 @@ async function fetchFornecedores(){
   suprimirCapturaUndo=true;saveState();suprimirCapturaUndo=false;
   renderAll();
 }
-let produtosSubsPorLoc={}, lancamentosSubsPorLoc={};
+async function fetchProdutoConfig(loc){
+  const {data,error}=await supabase.from('produto_config').select('*').eq('loc',loc);
+  if(error){toast('Erro ao ler configuração de compra de '+locLabel(loc)+': '+error.message,true);return}
+  locState(loc).produtoConfig={};
+  data.forEach(c=>{locState(loc).produtoConfig[c.nome]=c});
+  suprimirCapturaUndo=true;saveState();suprimirCapturaUndo=false;
+  renderAll();
+}
+let produtosSubsPorLoc={}, lancamentosSubsPorLoc={}, produtoConfigSubsPorLoc={};
 function garantirListenersLocal(loc){
   if(!produtosSubsPorLoc[loc]){
     fetchProdutos(loc);
@@ -2001,6 +2061,12 @@ function garantirListenersLocal(loc){
     fetchLancamentos(loc);
     lancamentosSubsPorLoc[loc]=supabase.channel('lancamentos-'+loc)
       .on('postgres_changes',{event:'*',schema:'public',table:'lancamentos',filter:'loc=eq.'+loc},()=>fetchLancamentos(loc))
+      .subscribe();
+  }
+  if(!produtoConfigSubsPorLoc[loc]){
+    fetchProdutoConfig(loc);
+    produtoConfigSubsPorLoc[loc]=supabase.channel('produto-config-'+loc)
+      .on('postgres_changes',{event:'*',schema:'public',table:'produto_config',filter:'loc=eq.'+loc},()=>fetchProdutoConfig(loc))
       .subscribe();
   }
 }
@@ -2023,7 +2089,8 @@ function iniciarListenersRealtime(){
 function pararListenersRealtime(){
   Object.values(produtosSubsPorLoc).forEach(ch=>supabase.removeChannel(ch));
   Object.values(lancamentosSubsPorLoc).forEach(ch=>supabase.removeChannel(ch));
-  produtosSubsPorLoc={};lancamentosSubsPorLoc={};
+  Object.values(produtoConfigSubsPorLoc).forEach(ch=>supabase.removeChannel(ch));
+  produtosSubsPorLoc={};lancamentosSubsPorLoc={};produtoConfigSubsPorLoc={};
   if(fornecedoresSub){supabase.removeChannel(fornecedoresSub);fornecedoresSub=null}
   realtimeListenersIniciados=false;
 }
@@ -2243,65 +2310,105 @@ function setMediaSemanalPeriodo(value){
   localStorage.setItem(MEDIA_PERIODO_KEY,String(mediaSemanalPeriodo));
   renderAll();
 }
+/* Igual mediaSemanalCalculada, mas somando as saídas de TODAS as fichas
+   com o mesmo nome, não só uma — necessário pra decisão de compra (que
+   agora é por produto, não por ficha/NFE), porque a baixa de estoque pode
+   ter sido dada ora numa ficha ora noutra da mesma compra repetida (ver
+   "escolher ficha" no lançamento de saída). Contar só uma ficha
+   subestimava o uso real do produto. */
+function mediaSemanalCalculadaPorNome(locId,nome,dias){
+  const end=todayIso(),start=addDays(end,-(dias-1));
+  const ids=new Set(productsOf(locId).filter(p=>p.nome===nome).map(p=>p.id));
+  const totalSaida=entriesOf(locId)
+    .filter(e=>ids.has(e.produtoId)&&Number(e.saida)>0&&e.data>=start&&e.data<=end)
+    .reduce((s,e)=>s+(Number(e.saida)||0),0);
+  return totalSaida>0?round2(totalSaida*7/dias):0;
+}
+function mediaSemanalEfetivaPorNome(locId,nome,cfg){
+  const calculada=mediaSemanalCalculadaPorNome(locId,nome,mediaSemanalPeriodo);
+  return {valor:calculada>0?calculada:(Number(cfg.mediaUsoSemanal)||0),calculada:calculada>0};
+}
 /* Prazo de entrega efetivo do produto: alguns fornecedores entregam rápido
    se já tiverem pronto, mas demoram bem mais se precisarem produzir antes
    — usa sempre o maior dos dois prazos cadastrados, pra cobrir o pior
    caso no cálculo de quando comprar (não arrisca ficar sem estoque por
-   ter assumido o prazo curto). tempoEntregaDias é o campo antigo (de
-   antes de separar pronto/produção); só entra na conta pra produtos
-   cadastrados antes dessa mudança que ainda não foram salvos de novo. */
-function prazoEntregaDias(p){
-  return Math.max(Number(p.tempoEntregaProntoDias)||0,Number(p.tempoEntregaProducaoDias)||0,Number(p.tempoEntregaDias)||0);
+   ter assumido o prazo curto). Prazo/margem/estoque-alvo/média manual
+   vêm de produto_config (compartilhados por nome, ver configDoProduto) —
+   não são mais um dado por ficha/NFE. */
+function prazoEntregaDias(cfg){
+  return Math.max(Number(cfg.tempoEntregaProntoDias)||0,Number(cfg.tempoEntregaProducaoDias)||0);
 }
 /* Pra essa compra específica, dá pra dizer se o fornecedor já tem pronto
    ou vai precisar produzir (seletor "Como chega" na aba Compras) — troca
    o prazo usado no cálculo pelo prazo real daquela situação, em vez do
    pior caso sempre. Sem escolher nada, continua no pior caso
-   (prazoEntregaDias) por segurança. Como qtd./preço de Compras, é por
-   sessão — não fica salvo no cadastro do produto. */
-let comprasProntoOverride={};
-function prazoEntregaCompraEfetivo(p){
-  const v=comprasProntoOverride[p.id];
-  if(v==='pronto')return Number(p.tempoEntregaProntoDias)||0;
-  if(v==='producao')return Number(p.tempoEntregaProducaoDias)||0;
-  return prazoEntregaDias(p);
+   (prazoEntregaDias) por segurança. Fica salvo em produto_config
+   (compraProntoOverride), por nome — assim qualquer usuário que abrir a
+   aba depois vê o que já foi configurado, pra qualquer ficha daquele
+   produto. */
+function prazoEntregaCompraEfetivo(cfg){
+  const v=cfg.compraProntoOverride;
+  if(v==='pronto')return Number(cfg.tempoEntregaProntoDias)||0;
+  if(v==='producao')return Number(cfg.tempoEntregaProducaoDias)||0;
+  return prazoEntregaDias(cfg);
 }
 /* Seletor "Como chega" (coluna da aba Compras) — só oferece as opções
    "Pronto"/"Produção" se o produto tiver aquele prazo específico
    cadastrado (não faz sentido oferecer "Pronto (0d)" se ninguém nunca
    preencheu esse campo). */
-function comoChegaSelectHtml(p){
-  const v=comprasProntoOverride[p.id]||'';
-  const temPronto=Number(p.tempoEntregaProntoDias)>0;
-  const temProducao=Number(p.tempoEntregaProducaoDias)>0;
-  if(!temPronto&&!temProducao)return `<span style="color:var(--muted)" title="Cadastre o prazo 'se pronto' e/ou 'se precisar produzir' no produto pra poder escolher aqui.">—</span>`;
-  return `<select class="compra-prazo-select" data-id="${p.id}" title="Pra essa compra, o fornecedor já tem pronto ou vai precisar produzir? Muda o prazo usado no cálculo de urgência/quantidade. Sem escolher, assume o pior caso (o maior prazo dos dois cadastrados).">
-    <option value=""${v===''?' selected':''}>Pior caso (${fmtNum(prazoEntregaDias(p))}d)</option>
-    ${temPronto?`<option value="pronto"${v==='pronto'?' selected':''}>Pronto (${fmtNum(p.tempoEntregaProntoDias)}d)</option>`:''}
-    ${temProducao?`<option value="producao"${v==='producao'?' selected':''}>Produção (${fmtNum(p.tempoEntregaProducaoDias)}d)</option>`:''}
+function comoChegaSelectHtml(nome,cfg){
+  const v=cfg.compraProntoOverride||'';
+  const temPronto=Number(cfg.tempoEntregaProntoDias)>0;
+  const temProducao=Number(cfg.tempoEntregaProducaoDias)>0;
+  if(!temPronto&&!temProducao)return `<span style="color:var(--muted)" title="Cadastre o prazo 'se pronto' e/ou 'se precisar produzir' no produto (aba Cadastro) pra poder escolher aqui.">—</span>`;
+  return `<select class="compra-prazo-select" data-nome="${esc(nome)}" title="Pra essa compra, o fornecedor já tem pronto ou vai precisar produzir? Muda o prazo usado no cálculo de urgência/quantidade. Sem escolher, assume o pior caso (o maior prazo dos dois cadastrados).">
+    <option value=""${v===''?' selected':''}>Pior caso (${fmtNum(prazoEntregaDias(cfg))}d)</option>
+    ${temPronto?`<option value="pronto"${v==='pronto'?' selected':''}>Pronto (${fmtNum(cfg.tempoEntregaProntoDias)}d)</option>`:''}
+    ${temProducao?`<option value="producao"${v==='producao'?' selected':''}>Produção (${fmtNum(cfg.tempoEntregaProducaoDias)}d)</option>`:''}
   </select>`;
 }
 /* Sugestão de compra: usa a média de uso semanal (calculada a partir do
-   histórico, com fallback pro campo manual), o tempo de entrega do
-   fornecedor e a margem de atraso pra achar o dia de disparar a compra e
-   a quantidade (cobre o consumo até a entrega chegar + o estoque-alvo
-   extra de segurança). Só se aplica a produtos com média semanal > 0. */
-function purchaseInfo(p,locId){
-  const media=mediaSemanalEfetiva(p,locId);
+   histórico de TODAS as fichas do produto, com fallback pro campo manual
+   compartilhado), o tempo de entrega do fornecedor e a margem de atraso
+   pra achar o dia de disparar a compra e a quantidade (cobre o consumo
+   até a entrega chegar + o estoque-alvo extra de segurança). Por
+   PRODUTO (nome), somando o estoque de todas as fichas — não faz mais
+   sentido por ficha isolada, já que a decisão de comprar mais ou não
+   depende do total que já tem, não só do que sobrou numa nota específica.
+   Só se aplica a produtos com média semanal > 0. */
+function purchaseInfo(nome,locId,estoqueTotal,cfg){
+  const media=mediaSemanalEfetivaPorNome(locId,nome,cfg);
   const consumoDiario=media.valor/7;
   if(consumoDiario<=0)return {aplicavel:false};
-  const prazoTotalDias=prazoEntregaCompraEfetivo(p)+(Number(p.margemAtrasoDias)||0);
-  const bufferDias=(Number(p.estoqueAlvoSemanas)||0)*7;
+  const prazoTotalDias=prazoEntregaCompraEfetivo(cfg)+(Number(cfg.margemAtrasoDias)||0);
+  const bufferDias=(Number(cfg.estoqueAlvoSemanas)||0)*7;
   const pontoReposicao=round2(consumoDiario*prazoTotalDias);
-  const diasRestantes=(Number(p.estoque)||0)/consumoDiario;
+  const diasRestantes=estoqueTotal/consumoDiario;
   const diasAteSolicitar=Math.floor(diasRestantes-prazoTotalDias);
   const dataSugerida=addDays(todayIso(),diasAteSolicitar);
-  const qtdSugerida=Math.max(0,round2(consumoDiario*(prazoTotalDias+bufferDias)-(Number(p.estoque)||0)));
+  const qtdSugerida=Math.max(0,round2(consumoDiario*(prazoTotalDias+bufferDias)-estoqueTotal));
   let urgencia='ok';
   if(diasAteSolicitar<=0)urgencia='atrasado';
   else if(diasAteSolicitar<=7)urgencia='urgente';
   else if(diasAteSolicitar<=14)urgencia='embreve';
   return {aplicavel:true,mediaSemanal:media.valor,mediaCalculada:media.calculada,consumoDiario,prazoTotalDias,pontoReposicao,diasRestantes,diasAteSolicitar,dataSugerida,qtdSugerida,urgencia};
+}
+/* Agrupa uma lista de fichas (já filtrada por quem chamou — Resumo filtra
+   por Classe/Status antes, Compras usa todas) por nome de produto, soma o
+   estoque e calcula a sugestão de compra do grupo inteiro de uma vez.
+   Usado tanto pelo painel "Precisa comprar" do Resumo quanto pela aba
+   Compras — mesma lógica, evita duplicar o agrupamento em dois lugares. */
+function agruparPorNomeParaCompra(locId,products){
+  const grupos={};
+  products.forEach(p=>{
+    const g=grupos[p.nome]=grupos[p.nome]||{nome:p.nome,estoque:0,fichas:[]};
+    g.estoque+=Number(p.estoque)||0;
+    g.fichas.push(p);
+  });
+  return Object.values(grupos).map(g=>{
+    const cfg=configDoProduto(locId,g.nome);
+    return {nome:g.nome,fichas:g.fichas,estoque:g.estoque,cfg,info:purchaseInfo(g.nome,locId,g.estoque,cfg)};
+  });
 }
 const URG_LABEL={atrasado:'Atrasado',urgente:'Urgente',embreve:'Em breve',ok:'OK'};
 const URG_CLASS={atrasado:'bad',urgente:'warn',embreve:'info',ok:'ok'};
@@ -2310,8 +2417,7 @@ function addProduct(locId,data){
   const product={id,data:data.data||todayIso(),nfeId:data.nfeId||'',fornecedor:data.fornecedor||'',classe:data.classe||'',
     nome:data.nome,estoque:0,valorUnitario:numBR(data.valorUnitario),valorTotal:0,tipo:data.tipo||'Unidade',status:'Concluído',
     statusManual:'Sendo Utilizado',mediaUsoSemanal:numBR(data.mediaUsoSemanal),ncm:data.ncm||'',cst:data.cst||'',
-    tempoEntregaProntoDias:numBR(data.tempoEntregaProntoDias),tempoEntregaProducaoDias:numBR(data.tempoEntregaProducaoDias),
-    margemAtrasoDias:numBR(data.margemAtrasoDias),estoqueAlvoSemanas:numBR(data.estoqueAlvoSemanas),
+    custosAdicionais:data.custosAdicionais||[],
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   locState(locId).products[id]=product;
   recordOp(locId,'products',id,product);
@@ -2330,10 +2436,7 @@ function updateProduct(locId,id,data){
     entriesForProduct(locId,id).forEach(e=>{e.nfeId=product.nfeId;recordOp(locId,'entries',e.id,e)});
   }
   if(data.mediaUsoSemanal!=null)product.mediaUsoSemanal=numBR(data.mediaUsoSemanal);
-  if(data.tempoEntregaProntoDias!=null)product.tempoEntregaProntoDias=numBR(data.tempoEntregaProntoDias);
-  if(data.tempoEntregaProducaoDias!=null)product.tempoEntregaProducaoDias=numBR(data.tempoEntregaProducaoDias);
-  if(data.margemAtrasoDias!=null)product.margemAtrasoDias=numBR(data.margemAtrasoDias);
-  if(data.estoqueAlvoSemanas!=null)product.estoqueAlvoSemanas=numBR(data.estoqueAlvoSemanas);
+  if(data.custosAdicionais!=null)product.custosAdicionais=data.custosAdicionais;
   if(data.valorUnitario!=null&&!entriesForProduct(locId,id).length)product.valorUnitario=numBR(data.valorUnitario);
   if(data.status&&STATUS_MANUAL.includes(data.status))product.statusManual=data.status;
   recalcProduct(locId,id);
@@ -2759,10 +2862,11 @@ function renderResumo(){
   let products=productsOf(locId);
   if(resumoFilters.classe)products=products.filter(p=>resumoFilters.classe.has(p.classe));
   if(resumoFilters.status)products=products.filter(p=>resumoFilters.status.has(p.status));
+  if(nomeFiltroGlobal)products=products.filter(p=>passaNomeFiltroGlobal(p.nome));
   const filteredIds=new Set(products.map(p=>p.id));
 
   const valorTotal=products.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
-  const comAlerta=products.map(p=>({p,info:purchaseInfo(p,locId)})).filter(r=>r.info.aplicavel&&r.info.diasAteSolicitar<=14);
+  const comAlerta=agruparPorNomeParaCompra(locId,products).filter(r=>r.info.aplicavel&&r.info.diasAteSolicitar<=14);
   const atrasados=comAlerta.filter(r=>r.info.urgencia==='atrasado').sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
   const urgentes=comAlerta.filter(r=>r.info.urgencia==='urgente').sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
   const emBreve=comAlerta.filter(r=>r.info.urgencia==='embreve').sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
@@ -2771,7 +2875,7 @@ function renderResumo(){
   const saidas=entriesOf(locId).filter(e=>filteredIds.has(e.produtoId)&&Number(e.saida)>0)
     .slice().sort((a,b)=>String(b.data||'').localeCompare(String(a.data||''))||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,10);
 
-  const grupoItemHtml=({p,info})=>`<div class="list-item"><div><strong>${esc(p.nome)}</strong><span>Estoque: ${fmtNum(p.estoque)} · ${info.diasAteSolicitar<=0?'Comprar agora':'Pedir em '+fmtDate(info.dataSugerida)} · Qtd. sugerida: ${fmtNum(info.qtdSugerida)}</span></div><span class="status-chip status-${URG_CLASS[info.urgencia]}">${URG_LABEL[info.urgencia]}</span></div>`;
+  const grupoItemHtml=({nome,estoque,info})=>`<div class="list-item"><div><strong>${esc(nome)}</strong><span>Estoque: ${fmtNum(estoque)} · ${info.diasAteSolicitar<=0?'Comprar agora':'Pedir em '+fmtDate(info.dataSugerida)} · Qtd. sugerida: ${fmtNum(info.qtdSugerida)}</span></div><span class="status-chip status-${URG_CLASS[info.urgencia]}">${URG_LABEL[info.urgencia]}</span></div>`;
   const precisaHtml=precisaComprar.length
     ?`<div class="list-manager">
         ${atrasados.length?`<p class="dash-group-label">🚨 Atrasado — comprar hoje</p>${atrasados.map(grupoItemHtml).join('')}`:''}
@@ -2852,6 +2956,7 @@ function renderCadastro(){
   if(cadastroFilters.classe)list=list.filter(p=>cadastroFilters.classe.has(p.classe));
   if(cadastroFilters.status)list=list.filter(p=>cadastroFilters.status.has(p.status));
   if(cadastroFilters.nomeExato)list=list.filter(p=>p.nome===cadastroFilters.nomeExato);
+  if(nomeFiltroGlobal)list=list.filter(p=>passaNomeFiltroGlobal(p.nome));
 
   const valorTotalFiltrado=list.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
   const sendoUtilizado=list.filter(p=>p.status==='Sendo Utilizado').length;
@@ -2976,6 +3081,7 @@ function renderLancamentos(){
     const q=lancFilters.search.toLowerCase();
     list=list.filter(e=>{const p=locState(locId).products[e.produtoId];return [p?p.nome:'',e.fornecedor,e.nfeId,e.classe,e.ciclo].some(v=>String(v||'').toLowerCase().includes(q))});
   }
+  if(nomeFiltroGlobal)list=list.filter(e=>passaNomeFiltroGlobal((locState(locId).products[e.produtoId]||{}).nome));
 
   let qtdEntrada=0,valorEntrada=0,qtdSaida=0,valorSaida=0;
   const nomesEntrada=new Set(),nomesSaida=new Set();
@@ -3284,31 +3390,67 @@ let comprasFilters={somenteAlerta:true,search:'',classe:null,status:new Set(['Se
 let comprasSelected=new Set();
 /* A quantidade sugerida é só um ponto de partida — a pessoa pode saber
    que vai comprar mais (ou menos) por outro motivo (preço melhor em lote
-   maior, promoção, etc.). comprasQtdOverride guarda o que foi digitado
-   manualmente por produto; se não tiver nada ali, usa a sugestão normal.
-   Não é salvo em lugar nenhum — é só pra essa solicitação que está sendo
-   montada agora. */
-let comprasQtdOverride={};
-function qtdCompraEfetiva(p,info){
-  const v=comprasQtdOverride[p.id];
+   maior, promoção, etc.). compraQtdOverride (em produto_config, por
+   nome) guarda o que foi digitado manualmente; se não tiver nada ali,
+   usa a sugestão normal. Fica salvo (salvarProdutoConfig), então
+   qualquer usuário que abrir a aba depois vê a mesma quantidade
+   configurada — pra qualquer ficha desse produto. */
+function qtdCompraEfetiva(cfg,info){
+  const v=cfg.compraQtdOverride;
   return v!=null?v:info.qtdSugerida;
 }
 /* Preço usado pra estimar o valor a pagar na aba Compras (e que também
    vale pra solicitação de compra gerada a partir dela, ver
-   gerarSolicitacaoCompra) — o valor unitário cadastrado na ficha do
-   produto nem sempre é o preço de verdade pra próxima compra (o
-   fornecedor pode ter reajustado), então a pessoa pode sobrescrever
-   digitando o valor atual direto na aba Compras. Sem override, cai pro
-   último valor realmente pago (entrada mais recente) e, sem nenhuma
-   entrada ainda, pro valor unitário da ficha. */
-let comprasPrecoOverride={};
-function precoUnitarioReferencia(locId,p){
-  const ultima=ultimaEntradaProduto(locId,p.id);
-  return ultima?(Number(ultima.valorUnitario)||0):(Number(p.valorUnitario)||0);
+   gerarSolicitacaoCompra) — o valor unitário cadastrado não é sempre o
+   preço de verdade pra próxima compra (o fornecedor pode ter
+   reajustado), então a pessoa pode sobrescrever digitando o valor atual
+   direto na aba Compras. Sem override, cai pro último valor realmente
+   pago (entrada mais recente de QUALQUER ficha deste produto) e, sem
+   nenhuma entrada ainda, pro valor unitário da ficha mais recente. */
+function precoUnitarioReferencia(ultima,fichaRef){
+  return ultima?(Number(ultima.valorUnitario)||0):(Number(fichaRef.valorUnitario)||0);
 }
-function precoCompraEfetivo(locId,p){
-  const v=comprasPrecoOverride[p.id];
-  return v!=null?v:precoUnitarioReferencia(locId,p);
+function precoCompraEfetivo(cfg,ultima,fichaRef){
+  const v=cfg.compraPrecoOverride;
+  return v!=null?v:precoUnitarioReferencia(ultima,fichaRef);
+}
+/* Grava um override da aba Compras (quantidade, preço ou "como chega")
+   em produto_config, por nome — pra ficar visível pra qualquer usuário
+   que abrir a aba depois, em qualquer ficha desse produto, não só na
+   sessão de quem digitou. Os campos de texto (qtd./preço) disparam a
+   cada tecla digitada; debounced=true atrasa o envio pro Supabase até a
+   pessoa parar de digitar por um instante, pra não sair uma requisição
+   por caractere (o "como chega", por ser um select, já muda só uma vez
+   por escolha e não passa por aqui). salvarProdutoConfig já atualiza o
+   cache local na hora (otimista), então não precisa mexer no estado
+   manualmente aqui. */
+let compraOverrideTimers={};
+function salvarCompraOverride(locId,nome,field,value,debounced){
+  const key=field+':'+nome;
+  if(!debounced){clearTimeout(compraOverrideTimers[key]);salvarProdutoConfig(locId,nome,{[field]:value});return}
+  clearTimeout(compraOverrideTimers[key]);
+  compraOverrideTimers[key]=setTimeout(()=>salvarProdutoConfig(locId,nome,{[field]:value}),700);
+}
+/* Entrada mais recente (com "entrada">0) entre TODAS as fichas de um
+   mesmo nome — equivalente a ultimaEntradaProduto, mas somando o
+   histórico do produto inteiro, não só de uma ficha/NFE. */
+function ultimaEntradaPorNome(locId,nome){
+  const ids=new Set(productsOf(locId).filter(p=>p.nome===nome).map(p=>p.id));
+  const entradas=entriesOf(locId).filter(e=>ids.has(e.produtoId)&&Number(e.entrada)>0);
+  if(!entradas.length)return null;
+  return entradas.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')))[0];
+}
+/* Fornecedor/classe/tipo podem variar entre as fichas do mesmo nome (nem
+   sempre é o mesmo fornecedor) — pra mostrar/usar UM valor representativo
+   na aba Compras e na solicitação gerada, usa a ficha dona da entrada
+   mais recente (mesmo critério do preço de referência); sem nenhuma
+   entrada ainda, cai pra ficha com a data mais recente. */
+function fichaReferenciaDoGrupo(fichas,ultimaEntrada){
+  if(ultimaEntrada){
+    const f=fichas.find(p=>p.id===ultimaEntrada.produtoId);
+    if(f)return f;
+  }
+  return fichas.slice().sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')))[0]||fichas[0];
 }
 /* "Últ.: R$X (+R$Y · +Z%)" — diferença entre o valor unitário atual (o
    que a pessoa está prestes a pagar) e o último valor pago de verdade.
@@ -3327,42 +3469,57 @@ function diferencaUltimoPrecoHtml(atual,ultimo){
   const cor=maisCaro?'var(--critical)':'var(--brand-dark)';
   return `${base} <span style="color:${cor};font-weight:800">(${sinal}${fmtMoney(Math.abs(diff))} · ${sinal}${pct.toFixed(1)}%)</span>`;
 }
+/* Uma linha por PRODUTO (nome), não mais por ficha/NFE — soma o estoque
+   de todas as fichas daquele nome e usa a config compartilhada
+   (produto_config) pra prazo/margem/estoque-alvo/média. fornecedor/
+   classe/tipo de exibição vêm da ficha de referência (ver
+   fichaReferenciaDoGrupo) já que podem variar entre fichas do mesmo
+   nome. */
 function comprasRows(locId){
-  return productsOf(locId).map(p=>({p,info:purchaseInfo(p,locId)})).filter(r=>r.info.aplicavel);
+  return agruparPorNomeParaCompra(locId,productsOf(locId)).filter(r=>r.info.aplicavel).map(r=>{
+    const fornecedores=new Set(r.fichas.map(p=>p.fornecedor).filter(Boolean));
+    const classes=new Set(r.fichas.map(p=>p.classe).filter(Boolean));
+    const statusSet=new Set(r.fichas.map(p=>p.status));
+    const ultima=ultimaEntradaPorNome(locId,r.nome);
+    const ref=fichaReferenciaDoGrupo(r.fichas,ultima);
+    return {...r,fornecedores,classes,statusSet,ultima,ref,
+      fornecedorLabel:fornecedores.size===0?'—':(fornecedores.size===1?[...fornecedores][0]:`${fornecedores.size} fornecedores`)};
+  });
 }
 function renderCompras(){
   const locId=activeLocation;
   const classeOptions=classesUsed(locId);
   let rows=comprasRows(locId);
-  if(comprasFilters.search){const q=comprasFilters.search.toLowerCase();rows=rows.filter(({p})=>[p.nome,p.fornecedor,p.nfeId,p.classe].some(v=>String(v||'').toLowerCase().includes(q)))}
-  if(comprasFilters.classe)rows=rows.filter(({p})=>comprasFilters.classe.has(p.classe));
-  if(comprasFilters.status)rows=rows.filter(({p})=>comprasFilters.status.has(p.status));
+  if(comprasFilters.search){const q=comprasFilters.search.toLowerCase();rows=rows.filter(r=>[r.nome,r.fornecedorLabel,...r.classes,...r.fichas.map(p=>p.nfeId)].some(v=>String(v||'').toLowerCase().includes(q)))}
+  if(comprasFilters.classe)rows=rows.filter(r=>[...r.classes].some(c=>comprasFilters.classe.has(c)));
+  if(comprasFilters.status)rows=rows.filter(r=>[...r.statusSet].some(s=>comprasFilters.status.has(s)));
   if(comprasFilters.somenteAlerta)rows=rows.filter(r=>r.info.diasAteSolicitar<=14);
+  if(nomeFiltroGlobal)rows=rows.filter(r=>passaNomeFiltroGlobal(r.nome));
   rows.sort((a,b)=>a.info.diasAteSolicitar-b.info.diasAteSolicitar);
-  const visibleIds=new Set(rows.map(r=>r.p.id));
-  [...comprasSelected].forEach(id=>{if(!visibleIds.has(id))comprasSelected.delete(id)});
-  const allSelected=rows.length>0&&rows.every(r=>comprasSelected.has(r.p.id));
+  const visibleNomes=new Set(rows.map(r=>r.nome));
+  [...comprasSelected].forEach(nome=>{if(!visibleNomes.has(nome))comprasSelected.delete(nome)});
+  const allSelected=rows.length>0&&rows.every(r=>comprasSelected.has(r.nome));
 
-  const rowsHtml=rows.map(({p,info})=>{
-    const ultima=ultimaEntradaProduto(locId,p.id);
-    const precoAtual=precoCompraEfetivo(locId,p);
-    const qtdInicial=qtdCompraEfetiva(p,info);
-    return `<tr data-id="${p.id}">
-    <td><input type="checkbox" class="compra-check" data-id="${p.id}"${comprasSelected.has(p.id)?' checked':''}></td>
-    <td class="col-strong" title="${esc(p.nome)}">${esc(p.nome)}</td><td title="${esc(p.fornecedor)}">${esc(p.fornecedor)}</td>
-    <td class="col-num">${fmtNum(p.estoque)}</td><td class="col-num">${fmtNum(info.mediaSemanal)}${info.mediaCalculada?'':' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>'}</td>
-    <td>${comoChegaSelectHtml(p)}</td>
+  const rowsHtml=rows.map(r=>{
+    const {nome,estoque,info,cfg,fornecedorLabel,ultima,ref}=r;
+    const precoAtual=precoCompraEfetivo(cfg,ultima,ref);
+    const qtdInicial=qtdCompraEfetiva(cfg,info);
+    return `<tr data-nome="${esc(nome)}">
+    <td><input type="checkbox" class="compra-check" data-nome="${esc(nome)}"${comprasSelected.has(nome)?' checked':''}></td>
+    <td class="col-strong" title="${esc(nome)}">${esc(nome)}</td><td title="${esc(fornecedorLabel)}">${esc(fornecedorLabel)}</td>
+    <td class="col-num">${fmtNum(estoque)}</td><td class="col-num">${fmtNum(info.mediaSemanal)}${info.mediaCalculada?'':' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>'}</td>
+    <td>${comoChegaSelectHtml(nome,cfg)}</td>
     <td class="col-num">${fmtNum(info.prazoTotalDias)}</td>
     <td><span class="status-chip status-${URG_CLASS[info.urgencia]}">${URG_LABEL[info.urgencia]}</span></td>
     <td>${info.diasAteSolicitar<=0?'Agora':fmtDate(info.dataSugerida)}</td>
     <td class="col-num"><div class="compra-qtd-cell">
-      <input type="text" inputmode="decimal" class="compra-qtd-input" data-id="${p.id}" autocomplete="off" value="${fmtNum(qtdInicial)}" title="Sugestão do sistema: ${fmtNum(info.qtdSugerida)}. Pode digitar outra quantidade se for comprar mais ou menos." oninput="brNumLiveInput(this)">
+      <input type="text" inputmode="decimal" class="compra-qtd-input" data-nome="${esc(nome)}" autocomplete="off" value="${fmtNum(qtdInicial)}" title="Sugestão do sistema: ${fmtNum(info.qtdSugerida)}. Pode digitar outra quantidade se for comprar mais ou menos." oninput="brNumLiveInput(this)">
       <span class="compra-valor-estimado compra-estimado-total" title="Estimativa: quantidade × valor unitário atual (ao lado). Não inclui frete.">${fmtMoney(qtdInicial*precoAtual)}</span>
     </div></td>
-    <td title="${esc(p.tipo)}">${esc(p.tipo)}</td>
+    <td title="${esc(ref.tipo)}">${esc(ref.tipo)}</td>
     <td class="col-num"><div class="compra-qtd-cell">
-      <div class="compra-preco-wrap"><span>R$</span><input type="text" inputmode="decimal" class="compra-preco-input" data-id="${p.id}" data-ultimo="${ultima?Number(ultima.valorUnitario)||0:''}" autocomplete="off" value="${inputBRMoney(precoAtual)}" title="Valor de 1 unidade pra essa compra. Vem preenchido com o último valor pago, mas edite se o preço mudou — essa é a base do valor estimado ao lado da quantidade e do total da solicitação de compra." oninput="brMoneyLiveInput(this)"></div>
-      <span class="compra-valor-estimado compra-diferenca-preco" title="Comparação com a última vez que esse produto foi comprado (entrada mais recente lançada). Vermelho = mais caro que da última vez; verde = mais barato.">${diferencaUltimoPrecoHtml(precoAtual,ultima?Number(ultima.valorUnitario)||0:null)}</span>
+      <div class="compra-preco-wrap"><span>R$</span><input type="text" inputmode="decimal" class="compra-preco-input" data-nome="${esc(nome)}" data-ultimo="${ultima?Number(ultima.valorUnitario)||0:''}" autocomplete="off" value="${inputBRMoney(precoAtual)}" title="Valor de 1 unidade pra essa compra. Vem preenchido com o último valor pago, mas edite se o preço mudou — essa é a base do valor estimado ao lado da quantidade e do total da solicitação de compra." oninput="brMoneyLiveInput(this)"></div>
+      <span class="compra-valor-estimado compra-diferenca-preco" title="Comparação com a última vez que esse produto foi comprado (entrada mais recente lançada, em qualquer ficha). Vermelho = mais caro que da última vez; verde = mais barato.">${diferencaUltimoPrecoHtml(precoAtual,ultima?Number(ultima.valorUnitario)||0:null)}</span>
     </div></td>
     <td class="col-num">${ultima?`${fmtNum(ultima.entrada)} <span style="color:var(--muted);font-weight:400">(${fmtDate(ultima.data)})</span>`:'—'}</td>
   </tr>`;
@@ -3383,7 +3540,7 @@ function renderCompras(){
     </div>
     <div class="table-scroll"><table class="prod-table" id="comprasTable">
       <thead><tr><th></th><th>Produto</th><th>Fornecedor</th><th>Estoque</th><th>Média sem. (${mediaSemanalPeriodo}d)</th><th title="Pra essa compra, o fornecedor já tem pronto ou vai precisar produzir? Isso muda o prazo usado no cálculo ao lado. Sem escolher, assume o pior caso (o maior prazo dos dois cadastrados no produto).">Como chega</th><th>Prazo total (dias)</th><th>Urgência</th><th>Dia sugerido p/ pedir</th><th title="O sistema sugere uma quantidade, mas dá pra digitar outra antes de gerar a solicitação. O valor logo abaixo é uma estimativa (quantidade × valor unitário atual, ao lado) e não inclui frete.">Qtd. a comprar<br><small style="font-weight:650;text-transform:none">valor estimado, sem frete</small></th><th>Unidade</th><th title="Vem preenchido com o último valor pago, mas edite se o preço mudou — é o valor usado no estimado e na solicitação de compra gerada.">Valor unit. atual<br><small style="font-weight:650;text-transform:none">último valor pago, abaixo</small></th><th>Últ. qtd. de entrada</th></tr></thead>
-      <tbody>${rowsHtml||`<tr><td colspan="13" class="empty-row">Nenhum produto com alerta de compra${comprasFilters.somenteAlerta?' nos próximos 14 dias':''}. Cadastre a média semanal e o tempo de entrega no produto para aparecer aqui.</td></tr>`}</tbody>
+      <tbody>${rowsHtml||`<tr><td colspan="13" class="empty-row">Nenhum produto com alerta de compra${comprasFilters.somenteAlerta?' nos próximos 14 dias':''}. Cadastre a média semanal e o tempo de entrega no produto (aba Cadastro) para aparecer aqui.</td></tr>`}</tbody>
     </table></div>`;
   document.getElementById('comprasFilterClasseMount').innerHTML=multiselectHtml('comprasFilterClasse','Todas as classes',classeOptions,comprasFilters.classe);
   wireMultiselect('comprasFilterClasse',classeOptions,()=>comprasFilters.classe,v=>comprasFilters.classe=v,renderCompras);
@@ -3394,18 +3551,18 @@ function renderCompras(){
   document.getElementById('comprasMediaPeriodo').onchange=e=>setMediaSemanalPeriodo(e.target.value);
   document.getElementById('comprasSomenteAlerta').onchange=e=>{comprasFilters.somenteAlerta=e.target.checked;renderCompras()};
   document.getElementById('comprasSelectAllBtn').onclick=()=>{
-    if(allSelected)rows.forEach(r=>comprasSelected.delete(r.p.id));else rows.forEach(r=>comprasSelected.add(r.p.id));
+    if(allSelected)rows.forEach(r=>comprasSelected.delete(r.nome));else rows.forEach(r=>comprasSelected.add(r.nome));
     renderCompras();
   };
   document.querySelectorAll('.compra-check').forEach(cb=>cb.onchange=()=>{
-    if(cb.checked)comprasSelected.add(cb.dataset.id);else comprasSelected.delete(cb.dataset.id);
+    if(cb.checked)comprasSelected.add(cb.dataset.nome);else comprasSelected.delete(cb.dataset.nome);
   });
   /* Muda o prazo total, a urgência, o dia sugerido e a quantidade
      sugerida da linha inteira — diferente do valor estimado (só um
      span), aqui é mais simples re-renderizar a aba toda de novo do que
      ir remendando cada célula afetada uma por uma. */
   document.querySelectorAll('.compra-prazo-select').forEach(sel=>sel.onchange=()=>{
-    comprasProntoOverride[sel.dataset.id]=sel.value||null;
+    salvarCompraOverride(locId,sel.dataset.nome,'compraProntoOverride',sel.value||null);
     renderCompras();
   });
   /* Qtd. e Valor unit. atual ficam em células (portanto <tr>) diferentes
@@ -3423,13 +3580,13 @@ function renderCompras(){
   };
   document.querySelectorAll('.compra-qtd-input').forEach(inp=>inp.oninput=()=>{
     brNumLiveInput(inp);
-    comprasQtdOverride[inp.dataset.id]=numBR(inp.value);
     atualizarEstimadoDaLinha(inp.closest('tr'));
+    salvarCompraOverride(locId,inp.dataset.nome,'compraQtdOverride',numBR(inp.value),true);
   });
   document.querySelectorAll('.compra-preco-input').forEach(inp=>inp.oninput=()=>{
     brMoneyLiveInput(inp);
-    comprasPrecoOverride[inp.dataset.id]=numBR(inp.value);
     atualizarEstimadoDaLinha(inp.closest('tr'));
+    salvarCompraOverride(locId,inp.dataset.nome,'compraPrecoOverride',numBR(inp.value),true);
   });
   document.getElementById('comprasGerarBtn').onclick=()=>gerarSolicitacaoCompra(rows);
 }
@@ -3441,18 +3598,26 @@ function renderCompras(){
    (imprimirSolicitacaoCompra). */
 let pedidoCompraGrupos=[];
 function gerarSolicitacaoCompra(rows){
-  const chosen=comprasSelected.size?rows.filter(r=>comprasSelected.has(r.p.id)):rows;
+  const chosen=comprasSelected.size?rows.filter(r=>comprasSelected.has(r.nome)):rows;
   if(!chosen.length){toast('Nenhum item para gerar solicitação.',true);return}
   const porFornecedor={};
   /* qtd, precoUnit e prazoDias "congelam" aqui o que vale pra esse pedido
      — a quantidade, o valor unitário atual e o prazo (pronto/produção)
      escolhidos na aba Compras — pro resto do fluxo (revisão + impressão)
      usar sempre esses números, sem precisar voltar a consultar os
-     overrides depois. */
-  chosen.forEach(({p,info})=>{const f=p.fornecedor||'(sem fornecedor)';(porFornecedor[f]=porFornecedor[f]||[]).push({p,info,qtd:qtdCompraEfetiva(p,info),precoUnit:precoCompraEfetivo(activeLocation,p),prazoDias:prazoEntregaCompraEfetivo(p)})});
+     overrides depois. Fornecedor/classe/tipo vêm da ficha de referência
+     do grupo (fichaReferenciaDoGrupo), já que podem variar entre fichas
+     do mesmo nome. */
+  chosen.forEach(r=>{
+    const f=r.ref.fornecedor||'(sem fornecedor)';
+    (porFornecedor[f]=porFornecedor[f]||[]).push({
+      nome:r.nome,classe:r.ref.classe,estoque:r.estoque,tipo:r.ref.tipo,ultima:r.ultima,
+      qtd:qtdCompraEfetiva(r.cfg,r.info),precoUnit:precoCompraEfetivo(r.cfg,r.ultima,r.ref),prazoDias:prazoEntregaCompraEfetivo(r.cfg)
+    });
+  });
   const fornecedores=Object.keys(porFornecedor).sort((a,b)=>a.localeCompare(b,'pt-BR'));
   pedidoCompraGrupos=fornecedores.map(f=>{
-    const itens=porFornecedor[f].slice().sort((a,b)=>a.p.nome.localeCompare(b.p.nome,'pt-BR'));
+    const itens=porFornecedor[f].slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
     const subtotalItens=round2(itens.reduce((s,{qtd,precoUnit})=>s+qtd*precoUnit,0));
     return {fornecedor:f,itens,subtotalItens};
   });
@@ -3486,10 +3651,9 @@ function imprimirSolicitacaoCompra(fretes){
   const resumoRows=[];
   const grupos=pedidoCompraGrupos.map((g,idx)=>{
     const f=g.fornecedor,itens=g.itens,frete=round2(fretes[idx]||0);
-    const rowsHtml=itens.map(({p,qtd,precoUnit,prazoDias})=>{
+    const rowsHtml=itens.map(({nome,classe,estoque,tipo,qtd,precoUnit,prazoDias,ultima})=>{
       const subtotal=round2(qtd*precoUnit);
-      const ultima=ultimaEntradaProduto(activeLocation,p.id);
-      return `<tr><td>${esc(p.nome)}</td><td>${esc(p.classe)}</td><td class="num">${fmtNum(p.estoque)}</td><td class="num">${fmtNum(qtd)}</td><td>${esc(p.tipo)}</td>
+      return `<tr><td>${esc(nome)}</td><td>${esc(classe)}</td><td class="num">${fmtNum(estoque)}</td><td class="num">${fmtNum(qtd)}</td><td>${esc(tipo)}</td>
         <td>${prazoDias?fmtNum(prazoDias)+' dia(s)':'—'}</td><td class="num">${fmtMoney(precoUnit)}</td><td class="num">${fmtMoney(subtotal)}</td>
         <td class="num">${ultima?fmtMoney(ultima.valorUnitario):'—'}</td><td class="num">${ultima?`${fmtNum(ultima.entrada)} (${fmtDate(ultima.data)})`:'—'}</td></tr>`;
     }).join('');
@@ -3602,6 +3766,7 @@ function relatorioEstoqueFiltrado(locId){
   let products=productsOf(locId);
   if(relatorioFiltroStatus)products=products.filter(p=>relatorioFiltroStatus.has(p.status));
   if(relatorioFiltroClasse)products=products.filter(p=>relatorioFiltroClasse.has(p.classe));
+  if(nomeFiltroGlobal)products=products.filter(p=>passaNomeFiltroGlobal(p.nome));
   return products;
 }
 function buildRelatorioHtml(locId){
@@ -3614,10 +3779,9 @@ function buildRelatorioHtml(locId){
      produto). Por isso aqui checa a classe do produto de cada saída. */
   const saidas=entriesOf(locId).filter(e=>{
     if(!(Number(e.saida)>0&&e.data>=start&&e.data<=end))return false;
-    if(relatorioFiltroClasse){
-      const p=locState(locId).products[e.produtoId];
-      if(!p||!relatorioFiltroClasse.has(p.classe))return false;
-    }
+    const p=locState(locId).products[e.produtoId];
+    if(relatorioFiltroClasse&&(!p||!relatorioFiltroClasse.has(p.classe)))return false;
+    if(nomeFiltroGlobal&&!passaNomeFiltroGlobal(p?p.nome:''))return false;
     return true;
   });
   const valorTotalGeral=products.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
@@ -3771,6 +3935,38 @@ function abrirRelatorioParaTela(locId){
 
 /* ── Diálogo: produto ────────────────────────────────────────────── */
 let editingProductId=null, editingProductLoc=null;
+/* Custos adicionais desta ficha (frete, embalagem, matéria-prima...),
+   cada um com descrição, NFE opcional e valor — somam com "Valor total
+   da nota" pra compor o Valor unitário real. Estado transiente do
+   diálogo aberto (populado em openProductDialog, gravado no produto em
+   persistProductForm), igual editingProductId/editingProductLoc acima. */
+let productCustosAdicionais=[];
+function renderProductCustosList(){
+  const wrap=document.getElementById('productCustosList');
+  wrap.innerHTML=productCustosAdicionais.map((c,i)=>`
+    <div class="field-inline" style="margin-bottom:8px">
+      <input type="text" class="custo-descricao-input" data-idx="${i}" maxlength="60" placeholder="Ex.: Frete, Embalagem..." style="flex:2" value="${esc(c.descricao||'')}">
+      <input type="text" class="custo-nfe-input" data-idx="${i}" maxlength="40" placeholder="NFE (opcional)" style="flex:1" value="${esc(c.nfeId||'')}">
+      <div class="money-input" style="flex:1"><span>R$</span><input type="text" inputmode="decimal" class="custo-valor-input" data-idx="${i}" autocomplete="off" placeholder="0,00" value="${c.valor?inputBRMoney(c.valor):''}"></div>
+      <button type="button" class="mini-remove" data-remove-custo="${i}" title="Remover">${ICON_TRASH}</button>
+    </div>`).join('');
+  wrap.querySelectorAll('.custo-descricao-input').forEach(inp=>inp.oninput=()=>{productCustosAdicionais[inp.dataset.idx].descricao=inp.value});
+  wrap.querySelectorAll('.custo-nfe-input').forEach(inp=>inp.oninput=()=>{productCustosAdicionais[inp.dataset.idx].nfeId=inp.value});
+  wrap.querySelectorAll('.custo-valor-input').forEach(inp=>inp.oninput=()=>{
+    brMoneyLiveInput(inp);
+    productCustosAdicionais[inp.dataset.idx].valor=numBR(inp.value);
+    calcValorUnitarioProduto();
+  });
+  wrap.querySelectorAll('[data-remove-custo]').forEach(btn=>btn.onclick=()=>{
+    productCustosAdicionais.splice(Number(btn.dataset.removeCusto),1);
+    renderProductCustosList();
+    calcValorUnitarioProduto();
+  });
+}
+function addCustoRow(){
+  productCustosAdicionais.push({descricao:'',nfeId:'',valor:0});
+  renderProductCustosList();
+}
 /* Select de fornecedor: lista do cadastro global + a opção "— Selecione —".
    Se o valor atual (dado antigo, digitado antes deste cadastro existir) não
    estiver na lista, mantém ele como opção extra pra não perder o dado. */
@@ -3794,18 +3990,31 @@ function renderStatusBoxes(){
     box.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();box.click()}};
   });
 }
-/* "Valor total da nota" ÷ quantidade = Valor unitário exato, calculado ao
-   vivo enquanto a pessoa digita — mesma lógica de planilha (=valorNota/qtd)
-   que evita a diferença de centavos de digitar um valor unitário já
-   arredondado e multiplicar de volta por uma quantidade grande. Só
-   sobrescreve o campo de valor unitário enquanto o campo de valor da nota
-   estiver preenchido; se a pessoa apagar o valor da nota, para de mexer no
-   valor unitário (deixa o que já tava digitado/calculado). */
+/* (Valor total da nota + soma dos custos adicionais) ÷ quantidade = Valor
+   unitário exato, calculado ao vivo enquanto a pessoa digita — mesma
+   lógica de planilha (=(valorNota+custos)/qtd) que evita a diferença de
+   centavos de digitar um valor unitário já arredondado e multiplicar de
+   volta por uma quantidade grande. Só sobrescreve o campo de valor
+   unitário enquanto o campo de valor da nota estiver preenchido; se a
+   pessoa apagar o valor da nota, para de mexer no valor unitário (deixa
+   o que já tava digitado/calculado). */
+function somaCustosAdicionais(){
+  return round2(productCustosAdicionais.reduce((s,c)=>s+(Number(c.valor)||0),0));
+}
+/* Editando uma ficha existente, "Valor total da nota" fica escondido (só
+   serve pro cálculo inicial, na criação) — nesse caso calcValorUnitarioProduto
+   não deve sobrescrever o Valor unitário (que já veio do produto ou está
+   travado), só atualizar a notinha de custos adicionais. */
 function calcValorUnitarioProduto(){
   const valorNota=numBR(document.getElementById('productValorNota').value);
+  const custos=somaCustosAdicionais();
   const qtd=numBR(document.getElementById('productEntradaInicial').value);
-  const vuField=document.getElementById('productValorUnitario');
-  vuField.value=(valorNota>0&&qtd>0)?inputBRMoney(valorNota/qtd):'';
+  const total=valorNota+custos;
+  if(!document.getElementById('productValorNotaField').hidden){
+    document.getElementById('productValorUnitario').value=(total>0&&qtd>0)?inputBRMoney(total/qtd):'';
+  }
+  const note=document.getElementById('productCustosTotalNote');
+  note.textContent=custos>0?`Custos adicionais: ${fmtMoney(custos)}${valorNota>0&&qtd>0?` · Nota + custos = ${fmtMoney(total)} → ${fmtMoney(total/qtd)}/unidade`:''}`:'';
 }
 /* Corrige o valor unitário de uma ficha que já tem lançamento — diferente
    de calcValorUnitarioProduto (que só calcula pro Valor unitário da ficha
@@ -3821,11 +4030,14 @@ async function corrigirValorUnitarioProduto(){
   const valorNota=numBR(document.getElementById('productCorrigirValorNota').value);
   const qtd=numBR(document.getElementById('productCorrigirQtd').value);
   if(!valorNota||!qtd){showAlert('productAlert','Preencha o valor total da nota e a quantidade que veio nela pra recalcular.');return}
+  const custos=somaCustosAdicionais();
   const entries=entriesForProduct(locId,id);
-  const ok=await confirmModern(`Recalcular o valor unitário de "${product.nome}" pra ${fmtMoney(valorNota/qtd)} e corrigir os ${entries.length} lançamento(s) já feitos nessa ficha (entradas e saídas)? Essa ação não pode ser desfeita.`,{title:'Corrigir valor da nota',confirmText:'Recalcular'});
+  const custosMsg=custos>0?` (mais ${fmtMoney(custos)} de custos adicionais)`:'';
+  const ok=await confirmModern(`Recalcular o valor unitário de "${product.nome}" pra ${fmtMoney((valorNota+custos)/qtd)}${custosMsg} e corrigir os ${entries.length} lançamento(s) já feitos nessa ficha (entradas e saídas)? Essa ação não pode ser desfeita.`,{title:'Corrigir valor da nota',confirmText:'Recalcular'});
   if(!ok)return;
-  const novoValor=valorNota/qtd;
+  const novoValor=(valorNota+custos)/qtd;
   product.valorUnitario=novoValor;
+  product.custosAdicionais=productCustosAdicionais.filter(c=>String(c.descricao||'').trim());
   entries.forEach(e=>{
     e.valorUnitario=novoValor;
     e.valorTotal=round2((Number(e.entrada)||Number(e.saida)||0)*novoValor);
@@ -3878,14 +4090,16 @@ function openProductDialog(id){
     document.getElementById('productNome').value=p.nome;
     document.getElementById('productTipo').value=p.tipo;
     vuField.value=inputBRMoney(p.valorUnitario);
-    document.getElementById('productMediaUso').value=inputBR(p.mediaUsoSemanal);
-    document.getElementById('productTempoEntregaPronto').value=p.tempoEntregaProntoDias!=null?p.tempoEntregaProntoDias:'';
-    document.getElementById('productTempoEntregaProducao').value=p.tempoEntregaProducaoDias!=null?p.tempoEntregaProducaoDias:(p.tempoEntregaDias!=null?p.tempoEntregaDias:'');
-    document.getElementById('productMargemAtraso').value=p.margemAtrasoDias!=null?p.margemAtrasoDias:'';
-    document.getElementById('productEstoqueAlvo').value=inputBR(p.estoqueAlvoSemanas);
+    const cfg=configDoProduto(activeLocation,p.nome);
+    document.getElementById('productMediaUso').value=inputBR(cfg.mediaUsoSemanal);
+    document.getElementById('productTempoEntregaPronto').value=cfg.tempoEntregaProntoDias||'';
+    document.getElementById('productTempoEntregaProducao').value=cfg.tempoEntregaProducaoDias||(p.tempoEntregaDias!=null?p.tempoEntregaDias:'');
+    document.getElementById('productMargemAtraso').value=cfg.margemAtrasoDias||'';
+    document.getElementById('productEstoqueAlvo').value=inputBR(cfg.estoqueAlvoSemanas);
     document.getElementById('productNcm').value=p.ncm;
     document.getElementById('productCst').value=p.cst;
     document.getElementById('productNfe').value=p.nfeId;
+    productCustosAdicionais=(p.custosAdicionais||[]).map(c=>({descricao:c.descricao||'',nfeId:c.nfeId||'',valor:Number(c.valor)||0}));
     statusSel.value=p.statusManual||'Sendo Utilizado';
     statusSel.disabled=p.estoque<=0;
     document.getElementById('productStatusNote').hidden=p.estoque>0;
@@ -3925,7 +4139,10 @@ function openProductDialog(id){
     document.getElementById('productValorUnitarioNote').hidden=false;
     document.getElementById('productEntradaInicialField').hidden=false;
     document.getElementById('productEntradaInicial').value='';
+    productCustosAdicionais=[];
   }
+  renderProductCustosList();
+  calcValorUnitarioProduto();
   atualizarEstoqueAlvoNota();
   document.getElementById('productDialog').showModal();
   document.getElementById('productNome').focus();
@@ -3947,7 +4164,8 @@ function buildProductFormData(){
     ncm:document.getElementById('productNcm').value.trim(),
     cst:document.getElementById('productCst').value.trim(),
     nfeId:document.getElementById('productNfe').value.trim(),
-    status:document.getElementById('productStatus').value
+    status:document.getElementById('productStatus').value,
+    custosAdicionais:productCustosAdicionais.filter(c=>String(c.descricao||'').trim()).map(c=>({descricao:c.descricao.trim(),nfeId:(c.nfeId||'').trim(),valor:round2(Number(c.valor)||0)}))
   };
 }
 /* Cria/atualiza o produto a partir do formulário — compartilhado entre
@@ -3957,6 +4175,13 @@ function buildProductFormData(){
 function persistProductForm(){
   const data=buildProductFormData();
   if(!data.nome){showAlert('productAlert','Informe o nome/ID do produto.');return null}
+  salvarProdutoConfig(editingProductLoc,data.nome,{
+    mediaUsoSemanal:numBR(data.mediaUsoSemanal),
+    tempoEntregaProntoDias:numBR(data.tempoEntregaProntoDias),
+    tempoEntregaProducaoDias:numBR(data.tempoEntregaProducaoDias),
+    margemAtrasoDias:numBR(data.margemAtrasoDias),
+    estoqueAlvoSemanas:numBR(data.estoqueAlvoSemanas)
+  });
   let entradaCriada=false;
   if(editingProductId){
     updateProduct(editingProductLoc,editingProductId,data);
@@ -4004,6 +4229,8 @@ function resetProductFieldsForNext(){
   document.getElementById('productEntradaInicial').value='';
   document.getElementById('productValorUnitarioNote').textContent='Calculado automaticamente: valor da nota ÷ quantidade.';
   document.getElementById('productValorUnitarioNote').hidden=false;
+  productCustosAdicionais=[];
+  renderProductCustosList();
   document.getElementById('productMediaUso').value='';
   document.getElementById('productTempoEntregaPronto').value='';
   document.getElementById('productTempoEntregaProducao').value='';
@@ -4485,10 +4712,23 @@ function boot(){
 
 /* ── Wiring estático (rodado uma vez, elementos já existem no HTML) ── */
 document.querySelectorAll('#subTabs .sub-tab').forEach(btn=>btn.onclick=()=>switchTab(btn.dataset.tab));
+document.getElementById('globalNomeFilterInput').oninput=e=>{
+  nomeFiltroGlobal=e.target.value;
+  document.getElementById('globalNomeFilterClear').hidden=!nomeFiltroGlobal;
+  renderActiveTab();
+};
+document.getElementById('globalNomeFilterClear').onclick=()=>{
+  nomeFiltroGlobal='';
+  const inp=document.getElementById('globalNomeFilterInput');
+  inp.value='';inp.focus();
+  document.getElementById('globalNomeFilterClear').hidden=true;
+  renderActiveTab();
+};
 document.getElementById('cadastroSearch').oninput=e=>{cadastroFilters.search=e.target.value;renderCadastro()};
 document.getElementById('addProductBtn').onclick=()=>openProductDialog();
 document.getElementById('productSaveNextBtn').onclick=()=>saveProductFormAndNext();
 document.getElementById('productCorrigirValorBtn').onclick=()=>corrigirValorUnitarioProduto();
+document.getElementById('productAddCustoBtn').onclick=()=>addCustoRow();
 document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:''};document.getElementById('cadastroSearch').value='';renderCadastro()};
 document.getElementById('cadastroAgruparNome').onchange=e=>{cadastroGroupByName=e.target.checked;if(cadastroGroupByName)cadastroFilters.nomeExato='';renderCadastro()};
 document.getElementById('lancSearch').oninput=e=>{lancFilters.search=e.target.value;lancPage=0;renderLancamentos()};
@@ -4516,6 +4756,30 @@ document.getElementById('entryForm').onsubmit=e=>{e.preventDefault();saveEntryFo
 document.getElementById('ajusteEstoqueForm').onsubmit=e=>{e.preventDefault();salvarAjusteEstoque()};
 document.getElementById('renomearUsuarioForm').onsubmit=e=>{e.preventDefault();salvarRenomearUsuario()};
 wireCombo('productNome','productNomePanel',()=>nomesProdutoUsados(activeLocation));
+/* Cadastrando um produto NOVO (não em edição), assim que o nome digitado
+   ou escolhido bater com um nome já usado, pré-preenche os campos
+   compartilhados (média/prazo/margem/estoque-alvo) com a config já
+   existente daquele nome — só um ponto de partida editável, não trava
+   nada. Só preenche campo que ainda está vazio, pra não atropelar o que
+   a pessoa já tiver digitado antes do nome bater. addEventListener (não
+   .oninput/.onblur) pra não substituir os handlers que wireCombo já
+   registrou nesse mesmo input. */
+function prefillConfigCompartilhadaAoDigitarNome(){
+  if(editingProductId)return;
+  const nome=document.getElementById('productNome').value.trim();
+  if(!nome)return;
+  const cfg=locState(activeLocation).produtoConfig[nome];
+  if(!cfg)return;
+  const setIfEmpty=(id,val)=>{const el=document.getElementById(id);if(!el.value&&val)el.value=val};
+  setIfEmpty('productMediaUso',cfg.mediaUsoSemanal?inputBR(cfg.mediaUsoSemanal):'');
+  setIfEmpty('productTempoEntregaPronto',cfg.tempoEntregaProntoDias||'');
+  setIfEmpty('productTempoEntregaProducao',cfg.tempoEntregaProducaoDias||'');
+  setIfEmpty('productMargemAtraso',cfg.margemAtrasoDias||'');
+  setIfEmpty('productEstoqueAlvo',cfg.estoqueAlvoSemanas?inputBR(cfg.estoqueAlvoSemanas):'');
+  atualizarEstoqueAlvoNota();
+}
+document.getElementById('productNome').addEventListener('input',prefillConfigCompartilhadaAoDigitarNome);
+document.getElementById('productNome').addEventListener('blur',prefillConfigCompartilhadaAoDigitarNome);
 wireCombo('productClasse','productClassePanel',()=>classesUsed(activeLocation));
 wireCombo('productTipo','productTipoPanel',()=>TIPO_LIST);
 wireCombo('entryClasse','entryClassePanel',()=>classesUsed(activeLocation));
