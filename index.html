@@ -976,6 +976,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="field combo"><label for="productNome">ID do produto<span class="help-icon" tabindex="0">?<span class="tooltip">Nome usado como identificador do produto. Escolha um já cadastrado na lista pra manter a grafia idêntica (importante pro "Agrupar por nome" somar certinho) ou digite um nome novo. Comprou de novo o mesmo produto, com NFE/fornecedor/valor diferente? Sem problema — escolha o nome existente e salve como ficha nova; cada compra vira uma ficha própria, e "Agrupar por nome" no Cadastro mostra o total somado de todas. Média de uso, prazo de entrega, margem de atraso e estoque-alvo (mais abaixo) são compartilhados entre todas as fichas deste nome — editar numa reflete nas outras, e a aba Compras já soma o estoque de todas numa sugestão só.</span></span></label><input id="productNome" class="combo-input" autocomplete="off" maxlength="120" placeholder="Ex.: ETIQUETA COUVELITOS" required><div class="combo-panel" id="productNomePanel" hidden></div></div>
       <div class="dialog-body-grid">
         <div class="field"><label for="productData">Data<span class="help-icon" tabindex="0">?<span class="tooltip">Data de referência desta ficha (normalmente a data da compra/NFE). Só serve pra ordenar — não entra em nenhum cálculo de estoque ou de compra.</span></span></label><input id="productData" type="date"></div>
+        <div class="field"><label for="productDataFaturamento">Data de faturamento da NF<span class="help-icon" tabindex="0">?<span class="tooltip">Data em que a nota fiscal foi faturada pelo fornecedor — pode ser diferente da data em que o material chegou de fato na empresa (o campo "Data" acima). Só informativo, não entra em nenhum cálculo. Se essa ficha já nascer com uma "Quantidade que já entrou", essa data também é usada na entrada inicial lançada automaticamente.</span></span></label><input id="productDataFaturamento" type="date"></div>
         <div class="field combo"><label for="productFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta ficha específica. Precisa estar cadastrado na aba Fornecedores pra aparecer na lista — os dados dele (telefone, endereço, e-mail) aparecem automaticamente na solicitação de compra impressa.</span></span></label><select id="productFornecedor" hidden></select><input type="text" id="productFornecedorSearch" name="productFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="productFornecedorPanel" hidden></div><span class="field-help">Não achou? Cadastre na aba <strong>Fornecedores</strong>.</span></div>
         <div class="field combo"><label for="productClasse">Classe<span class="help-icon" tabindex="0">?<span class="tooltip">Categoria livre pra organizar e filtrar (ex.: Etiquetas, Bobinas, Cintas). Digite um nome novo ou escolha um já usado — o painel lembra as classes anteriores.</span></span></label><input id="productClasse" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Etiquetas"><div class="combo-panel" id="productClassePanel" hidden></div></div>
         <div class="field combo"><label for="productTipo">Tipo (unidade de medida)<span class="help-icon" tabindex="0">?<span class="tooltip">Unidade de contagem do produto. Escolha uma da lista ou digite a sua, se a que você precisa não estiver nela. Só informativo — aparece nas tabelas e na solicitação de compra, mas não muda nenhum cálculo.</span></span></label><input id="productTipo" class="combo-input" autocomplete="off" maxlength="40" placeholder="Ex.: Unidade, Caixa, Kg..."><div class="combo-panel" id="productTipoPanel" hidden></div></div>
@@ -2637,7 +2638,7 @@ const URG_LABEL={atrasado:'Atrasado',urgente:'Urgente',embreve:'Em breve',ok:'OK
 const URG_CLASS={atrasado:'bad',urgente:'warn',embreve:'info',ok:'ok'};
 function addProduct(locId,data){
   const id=uid('pr');
-  const product={id,data:data.data||todayIso(),nfeId:data.nfeId||'',fornecedor:data.fornecedor||'',classe:data.classe||'',
+  const product={id,data:data.data||todayIso(),dataFaturamento:data.dataFaturamento||'',nfeId:data.nfeId||'',fornecedor:data.fornecedor||'',classe:data.classe||'',
     nome:data.nome,estoque:0,valorUnitario:numBR(data.valorUnitario),valorTotal:0,tipo:data.tipo||'Unidade',status:'Concluído',
     statusManual:'Sendo Utilizado',mediaUsoSemanal:numBR(data.mediaUsoSemanal),ncm:data.ncm||'',cst:data.cst||'',
     custosAdicionais:data.custosAdicionais||[],
@@ -2650,9 +2651,9 @@ function addProduct(locId,data){
 function updateProduct(locId,id,data){
   const product=locState(locId).products[id];if(!product)return;
   const oldNfeId=product.nfeId;
-  const antes={data:product.data,nfeId:product.nfeId,fornecedor:product.fornecedor,classe:product.classe,nome:product.nome,
+  const antes={data:product.data,dataFaturamento:product.dataFaturamento,nfeId:product.nfeId,fornecedor:product.fornecedor,classe:product.classe,nome:product.nome,
     tipo:product.tipo,ncm:product.ncm,cst:product.cst,valorUnitario:product.valorUnitario,statusManual:product.statusManual};
-  ['data','nfeId','fornecedor','classe','nome','tipo','ncm','cst'].forEach(k=>{if(data[k]!=null)product[k]=data[k]});
+  ['data','dataFaturamento','nfeId','fornecedor','classe','nome','tipo','ncm','cst'].forEach(k=>{if(data[k]!=null)product[k]=data[k]});
   /* A ficha do produto representa uma NFE só — todo lançamento feito nela
      pertence a essa mesma nota. Se o número mudar no cadastro, corrige
      junto em todos os lançamentos já feitos dessa ficha, senão eles
@@ -2676,6 +2677,7 @@ function updateProduct(locId,id,data){
   if(antes.fornecedor!==product.fornecedor)partes.push(`fornecedor: "${antes.fornecedor||'—'}" → "${product.fornecedor||'—'}"`);
   if(antes.tipo!==product.tipo)partes.push(`tipo: "${antes.tipo||'—'}" → "${product.tipo||'—'}"`);
   if(antes.data!==product.data)partes.push(`data: ${fmtDate(antes.data)} → ${fmtDate(product.data)}`);
+  if(antes.dataFaturamento!==product.dataFaturamento)partes.push(`data de faturamento da NF: ${fmtDate(antes.dataFaturamento)} → ${fmtDate(product.dataFaturamento)}`);
   if(antes.nfeId!==product.nfeId)partes.push(`NFE/ID: "${antes.nfeId||'—'}" → "${product.nfeId||'—'}"`);
   if(antes.ncm!==product.ncm)partes.push(`NCM: "${antes.ncm||'—'}" → "${product.ncm||'—'}"`);
   if(antes.cst!==product.cst)partes.push(`CST: "${antes.cst||'—'}" → "${product.cst||'—'}"`);
@@ -3386,13 +3388,13 @@ function renderCadastro(){
     if(typeof av==='number'||typeof bv==='number')return ((Number(av)||0)-(Number(bv)||0))*dir;
     return String(av||'').localeCompare(String(bv||''),'pt-BR')*dir;
   });
-  const cols=[['data','Data'],['nfeId','NFE/ID'],['fornecedor','Fornecedor'],['classe','Classe'],['nome','ID do Produto'],
+  const cols=[['data','Data'],['nfeId','NFE/ID'],['dataFaturamento','Fatura NF'],['fornecedor','Fornecedor'],['classe','Classe'],['nome','ID do Produto'],
     ['estoque','Estoque'],['valorUnitario','Valor Unit.'],['valorTotal','Valor Total'],['tipo','Tipo'],['status','Status'],
     ['mediaEfetiva',`Média US/Sem. (${mediaSemanalPeriodo}d)`]];
   if(cadastroMostrarFiscal)cols.push(['ncm','NCM'],['cst','CST']);
   const thead=`<tr>${cols.map(([key,label])=>`<th data-sort="${key}">${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
   const rowsHtml=list.map(p=>`<tr data-id="${p.id}">
-    <td>${fmtDate(p.data)}</td><td title="${esc(p.nfeId)}">${esc(p.nfeId)}</td><td title="${esc(p.fornecedor)}">${esc(fornecedorExibicao(p.fornecedor))}</td><td title="${esc(p.classe)}">${esc(p.classe)}</td>
+    <td>${fmtDate(p.data)}</td><td title="${esc(p.nfeId)}">${esc(p.nfeId)}</td><td>${p.dataFaturamento?fmtDate(p.dataFaturamento):'—'}</td><td title="${esc(p.fornecedor)}">${esc(fornecedorExibicao(p.fornecedor))}</td><td title="${esc(p.classe)}">${esc(p.classe)}</td>
     <td class="col-strong" title="${esc(p.nome)}">${esc(p.nome)}<span data-presence-produto="${p.id}"></span></td><td class="col-num">${fmtNum(p.estoque)}</td><td class="col-num">${fmtMoney(p.valorUnitario)}</td>
     <td class="col-num">${fmtMoney(p.valorTotal)}</td><td>${esc(p.tipo)}</td><td class="col-status">${statusChip(p.status)}</td>
     <td class="col-num">${fmtNum(p.mediaEfetiva)}${p.mediaEfetivaCalculada?'':(p.mediaEfetiva>0?' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>':'')}</td>${cadastroMostrarFiscal?`<td>${esc(p.ncm)}</td><td>${esc(p.cst)}</td>`:''}
@@ -4534,6 +4536,7 @@ function openProductDialog(id){
     const p=locState(activeLocation).products[id];
     definirPresencaRegistro('produto',id,p.nome);
     document.getElementById('productData').value=String(p.data||'').slice(0,10);
+    document.getElementById('productDataFaturamento').value=String(p.dataFaturamento||'').slice(0,10);
     populateFornecedorSelect(document.getElementById('productFornecedor'),p.fornecedor);
     document.getElementById('productClasse').value=p.classe;
     document.getElementById('productNome').value=p.nome;
@@ -4577,6 +4580,7 @@ function openProductDialog(id){
     document.getElementById('productValorNotaField').hidden=false;
     document.getElementById('productSaveNextBtn').hidden=false;
     document.getElementById('productData').value=todayIso();
+    document.getElementById('productDataFaturamento').value='';
     populateFornecedorSelect(document.getElementById('productFornecedor'),'');
     document.getElementById('productTipo').value='Unidade';
     statusSel.value='Sendo Utilizado';statusSel.disabled=true;
@@ -4600,6 +4604,7 @@ function openProductDialog(id){
 function buildProductFormData(){
   return {
     data:document.getElementById('productData').value||todayIso(),
+    dataFaturamento:document.getElementById('productDataFaturamento').value,
     fornecedor:document.getElementById('productFornecedor').value.trim(),
     classe:document.getElementById('productClasse').value.trim(),
     nome:document.getElementById('productNome').value.trim(),
@@ -4638,7 +4643,7 @@ function persistProductForm(){
     const product=addProduct(editingProductLoc,data);
     const entradaInicial=document.getElementById('productEntradaInicial').value;
     if(numBR(entradaInicial)>0){
-      addEntry(editingProductLoc,{data:data.data,produtoId:product.id,destino:'Entrada Estoque',
+      addEntry(editingProductLoc,{data:data.data,dataFaturamento:data.dataFaturamento,produtoId:product.id,destino:'Entrada Estoque',
         entrada:entradaInicial,valorUnitario:data.valorUnitario,classe:data.classe,
         fornecedor:data.fornecedor,nfeId:data.nfeId});
       entradaCriada=true;
