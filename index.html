@@ -470,6 +470,11 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    permite a fonte reduzir um pouco (até 16px) antes de precisar cortar
    com ellipsis, o que só entra como último recurso. */
 .kpi-copy strong{display:block;margin-top:2px;font-size:clamp(16px,1.1vw + 11px,20px);font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi-critical .kpi-icon{background:var(--critical-soft)}
+.kpi-critical .kpi-copy strong{color:var(--critical)}
+.dash-panel-critical{border-color:var(--critical);background:var(--critical-soft)}
+.dash-panel-critical>h4{color:var(--critical)}
+.estoque-negativo{color:var(--critical);font-weight:800;cursor:help}
 .dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:820px){.dash-grid-2{grid-template-columns:1fr}}
 .dash-panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;box-shadow:var(--shadow-sm);min-width:0}
@@ -613,6 +618,13 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 .dialog-foot{padding:16px 22px 20px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:9px}
 .dialog-foot .btn{min-width:112px;justify-content:center}
 #productDialog,#entryDialog{width:min(760px,calc(100% - 28px))}
+#bulkSaidaDialog{width:min(760px,calc(100% - 28px))}
+.bulk-saida-row{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 11px;margin-bottom:8px}
+.bulk-saida-row>.bulk-saida-info{min-width:0;flex:1}
+.bulk-saida-row>.bulk-saida-info strong{display:block;font-size:13.5px}
+.bulk-saida-row>.bulk-saida-info span{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+.bulk-saida-row>.bulk-saida-qtd{flex:none;width:130px}
+.bulk-saida-row>.bulk-saida-qtd input{width:100%}
 #fornecedorDialog{width:min(860px,calc(100% - 28px))}
 #usersDialog{width:min(820px,calc(100% - 28px))}
 #onlineDialog{width:min(820px,calc(100% - 28px))}
@@ -871,6 +883,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="cloud-badge" id="cloudBadge"><span class="dot"></span><span id="cloudText">Conectando…</span></div>
       <button type="button" class="btn btn-icon-only" id="zoomFixBtn" hidden aria-label="Corrigir zoom da tela" title="Sua tela parece estar com escala/zoom do Windows fracionado (ex.: 125%, 150%) — isso pode deixar a tabela com colunas levemente desalinhadas. Clique pra ajustar o zoom da página automaticamente e corrigir."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
       <button type="button" class="btn btn-icon-only" id="themeBtn" title="Alternar tema" aria-label="Alternar entre tema claro e escuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg></button>
+      <button type="button" class="btn btn-icon-only" id="gerenciarDestinosBtn" title="Gerenciar destinos — corrige o nome de um destino já lançado (ex.: nome digitado errado)" aria-label="Gerenciar destinos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg></button>
     </div>
     <div class="actions">
       <button type="button" class="btn btn-soft" id="usersBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Usuários</span></button>
@@ -957,6 +970,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="filter-bar-actions">
         <button type="button" class="btn" id="lancClearFiltersBtn">Limpar filtros</button>
         <button type="button" class="btn btn-primary" id="addEntryBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Novo lançamento</span></button>
+        <button type="button" class="btn" id="bulkSaidaBtn" title="Lança a saída de vários produtos de uma vez, todos pro mesmo destino"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg><span>Saída em lote</span></button>
       </div>
     </div>
     <div class="kpi-row" id="lancKpiRow"></div>
@@ -1028,6 +1042,45 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       </div>
     </div>
     <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancelar</button><button type="submit" class="btn btn-primary" id="entrySave">Salvar lançamento</button></div>
+  </form>
+</dialog>
+
+<dialog id="bulkSaidaDialog">
+  <form method="dialog" id="bulkSaidaForm">
+    <div class="dialog-head"><div><h3>Saída em lote</h3><p>Lança a saída de vários produtos de uma vez, todos pro mesmo destino — em vez de abrir "Novo lançamento" um por um.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
+    <div class="dialog-body">
+      <p class="dialog-alert" id="bulkSaidaAlert" hidden></p>
+      <div class="dialog-body-grid">
+        <div class="field"><label for="bulkSaidaData">Data que saiu do estoque</label><input id="bulkSaidaData" type="date"></div>
+        <div class="field combo"><label for="bulkSaidaDestino">Destino<span class="help-icon" tabindex="0">?<span class="tooltip">Pra onde foi esta movimentação — ex.: nome de um cliente, Descarte. Aplicado a todos os produtos lançados aqui.</span></span></label><input id="bulkSaidaDestino" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Descarte, nome do cliente..."><div class="combo-panel" id="bulkSaidaDestinoPanel" hidden></div></div>
+        <div class="field combo"><label for="bulkSaidaClasse">Classe (onde foi usado)</label><input id="bulkSaidaClasse" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Tomate Bombom 180g"><div class="combo-panel" id="bulkSaidaClassePanel" hidden></div></div>
+        <div class="field combo"><label for="bulkSaidaCiclo">Ciclo</label><input id="bulkSaidaCiclo" class="combo-input" autocomplete="off" maxlength="60"><div class="combo-panel" id="bulkSaidaCicloPanel" hidden></div></div>
+      </div>
+      <div class="field combo" style="margin-top:6px"><label for="bulkSaidaProdutoSearch">Adicionar produto</label><input type="text" id="bulkSaidaProdutoSearch" class="combo-input" autocomplete="off" placeholder="Buscar produto pra adicionar à lista..."><div class="combo-panel" id="bulkSaidaProdutoPanel" hidden></div></div>
+      <div id="bulkSaidaList" style="margin-top:12px"></div>
+      <p class="field-help" id="bulkSaidaEmpty">Nenhum produto adicionado ainda — busque acima pra começar.</p>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancelar</button><button type="submit" class="btn btn-primary" id="bulkSaidaSave">Lançar saídas</button></div>
+  </form>
+</dialog>
+
+<dialog id="gerenciarDestinosDialog">
+  <div class="dialog-head"><div><h3>Gerenciar destinos</h3><p>Corrige o nome de um destino em todos os lançamentos que já usam ele — útil quando alguém digitou errado. Só afeta os lançamentos do local aberto agora.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
+  <div class="dialog-body">
+    <p class="dialog-alert" id="gerenciarDestinosAlert" hidden></p>
+    <div class="list-manager" id="gerenciarDestinosList"></div>
+  </div>
+  <div class="dialog-foot"><button type="button" class="btn btn-primary" onclick="this.closest('dialog').close()">Fechar</button></div>
+</dialog>
+
+<dialog id="renomearDestinoDialog">
+  <form method="dialog" id="renomearDestinoForm">
+    <div class="dialog-head"><div><h3>Renomear destino</h3><p>Atualiza o nome em todos os lançamentos deste local que usam esse destino.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
+    <div class="dialog-body">
+      <p class="dialog-alert" id="renomearDestinoAlert" hidden></p>
+      <div class="field"><label for="renomearDestinoNome">Nome do destino</label><input id="renomearDestinoNome" maxlength="60" required></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancelar</button><button type="submit" class="btn btn-primary">Salvar</button></div>
   </form>
 </dialog>
 
@@ -1809,14 +1862,25 @@ function brNumLiveInput(el){
   if(sigBefore<=0)newPos=0;
   el.setSelectionRange(newPos,newPos);
 }
-/* Como brNumLiveInput, mas pra campos de dinheiro (R$): troca "." por ","
-   antes de formatar, porque muita gente digita o decimal com ponto (hábito
-   de teclado numérico/padrão americano) — sem isso, "5.00" perdia o ponto
-   (brNumLiveInput só reconhece vírgula) e virava "500" (quinhentos reais
-   em vez de cinco). Ponto e vírgula ocupam 1 caractere cada, então trocar
-   não bagunça a posição do cursor antes de chamar brNumLiveInput. */
+/* Como brNumLiveInput, mas pra campos de dinheiro (R$). Dois jeitos de
+   digitar o decimal precisam funcionar:
+   1) Hábito de teclado numérico/padrão americano: digitar "." pro decimal
+      (ex.: "12.53"). Só que o próprio campo já vai inserindo "." de milhar
+      sozinho enquanto digita (ver brNumLiveInput) — então nem todo "."
+      presente é decimal; um "." seguido de 3 dígitos é sempre separador de
+      milhar (nosso próprio, ou colado de outro lugar), só um "." seguido de
+      0-2 dígitos NO FINAL do texto é realmente um decimal sendo digitado.
+   2) Colar um valor já formatado igual nota fiscal, tipo "12.432,53" — aí
+      JÁ tem vírgula (decimal certo), e qualquer "." é só separador de
+      milhar; antes disso era convertido pra vírgula também (bug: virava
+      "12,432,53", que a lógica de baixo cortava errado, perdendo dígitos).
+   Com vírgula já presente → todo "." é milhar, remove. Sem vírgula → só o
+   ÚLTIMO "." (se seguido de 0-2 dígitos até o fim) vira decimal; os demais
+   são milhar e somem. */
 function brMoneyLiveInput(el){
-  el.value=el.value.replace(/\./g,',');
+  let v=el.value;
+  v=v.includes(',')?v.replace(/\./g,''):v.replace(/\.(\d{0,2})$/,',$1').replace(/\./g,'');
+  el.value=v;
   brNumLiveInput(el);
 }
 function inputBR(n){
@@ -2128,6 +2192,35 @@ function classesUsed(id){return [...new Set(productsOf(id).map(p=>p.classe).filt
 function nomesProdutoUsados(id){return [...new Set(productsOf(id).map(p=>p.nome).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function ciclosUsed(id){return [...new Set(entriesOf(id).map(e=>e.ciclo).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
 function destinosUsed(id){return [...new Set([...DESTINO_LIST,...entriesOf(id).map(e=>e.destino).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
+/* Produtos com estoque negativo — não deveria acontecer pelo caminho normal
+   (addEntry/updateEntry travam saída maior que o disponível), mas rola em
+   casos de borda: duas pessoas lançando saída do mesmo produto ao mesmo
+   tempo em dispositivos diferentes (cada uma valida contra o que via na
+   hora, sem saber da outra), ou um lançamento com data retroativa que muda
+   a ordem cronológica do histórico. Listado no Resumo (sempre, ignorando os
+   filtros da tela) e destacado em vermelho no Cadastro, pra alguém perceber
+   e corrigir — normalmente editando ou removendo o lançamento de saída
+   errado em Lançamentos. */
+function produtosComEstoqueNegativo(locId){
+  return productsOf(locId).filter(p=>(Number(p.estoque)||0)<0).sort((a,b)=>(Number(a.estoque)||0)-(Number(b.estoque)||0));
+}
+/* Célula de Estoque nas tabelas de Cadastro — destaca em vermelho quando
+   negativo, pra chamar atenção mesmo sem abrir o Resumo. */
+function estoqueCellHtml(estoque){
+  const n=Number(estoque)||0;
+  return n<0?`<span class="estoque-negativo" title="Estoque negativo — algum lançamento de saída ficou maior que o disponível. Veja o Resumo ou os lançamentos deste produto pra corrigir.">${fmtNum(n)}</span>`:fmtNum(n);
+}
+/* Aviso NA HORA — além do banner do Resumo e do destaque no Cadastro (que
+   só aparecem quando a pessoa passa por lá depois), quem acabou de salvar
+   o lançamento precisa saber IMEDIATAMENTE se essa ação deixou o produto
+   negativo, pra já corrigir sem precisar descobrir depois em outra aba.
+   Retorna a mensagem de aviso (ou null se o estoque está ok) pra quem
+   chamar decidir o toast. */
+function avisoEstoqueNegativo(locId,produtoId){
+  const p=locState(locId).products[produtoId];
+  if(!p||(Number(p.estoque)||0)>=0)return null;
+  return `Atenção: o estoque de "${p.nome}" ficou negativo (${fmtNum(p.estoque)}). Confira os lançamentos pra corrigir.`;
+}
 
 /* ── Fornecedores (cadastro global, compartilhado entre os 3 locais) ── */
 function fornecedoresList(){return Object.values(state.fornecedores||{}).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'))}
@@ -3263,6 +3356,10 @@ let resumoFilters={classe:null,status:new Set(['Sendo Utilizado'])};
 function renderResumo(){
   const locId=activeLocation;
   const classeOptions=classesUsed(locId);
+  /* Ignora os filtros de Classe/Status de propósito — estoque negativo é
+     um problema de dado que precisa aparecer sempre, senão um filtro
+     ativo esconderia justamente o produto que precisa de correção. */
+  const negativos=produtosComEstoqueNegativo(locId);
   let products=productsOf(locId);
   if(resumoFilters.classe)products=products.filter(p=>resumoFilters.classe.has(p.classe));
   if(resumoFilters.status)products=products.filter(p=>resumoFilters.status.has(p.status));
@@ -3309,7 +3406,12 @@ function renderResumo(){
       <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-copy"><span>Urgente (7 dias)</span><strong>${fmtNum(urgentes.length)}</strong></div></div>
       <div class="kpi"><div class="kpi-icon">🕒</div><div class="kpi-copy"><span>Em breve (8-14 dias)</span><strong>${fmtNum(emBreve.length)}</strong></div></div>
       <div class="kpi"><div class="kpi-icon">💰</div><div class="kpi-copy"><span>Valor total em estoque</span><strong>${fmtMoney(valorTotal)}</strong></div></div>
+      ${negativos.length?`<div class="kpi kpi-critical"><div class="kpi-icon">🔴</div><div class="kpi-copy"><span>Estoque negativo</span><strong>${fmtNum(negativos.length)}</strong></div></div>`:''}
     </div>
+    ${negativos.length?`<div class="dash-panel dash-panel-critical" style="margin-bottom:16px">
+      <h4>🔴 ${negativos.length} produto${negativos.length>1?'s':''} com estoque negativo<small>algum lançamento de saída ficou maior que o disponível (duas pessoas lançando ao mesmo tempo, data retroativa, etc.) — corrija o quanto antes, senão distorce a média de uso e a sugestão de compra</small></h4>
+      <div class="list-manager">${negativos.map(p=>`<div class="list-item"><div><strong>${esc(p.nome)}</strong><span>Estoque atual: ${fmtNum(p.estoque)}${p.tipo?' '+esc(p.tipo):''}</span></div><button type="button" class="btn btn-soft" data-ver-negativo="${p.id}">Ver lançamentos</button></div>`).join('')}</div>
+    </div>`:''}
     <div class="dash-panel" style="margin-bottom:16px"><h4>O que precisa comprar<small>ordenado por urgência — quem está no topo precisa de ação primeiro</small></h4>${precisaHtml}</div>
     <div class="dash-panel" style="margin-bottom:16px"><h4>Entradas x Saídas em R$<small>quanto entrou e saiu em valor por período — passe o mouse num ponto pra ver os produtos que mais pesaram</small></h4><div id="resumoGraficoContainer"></div></div>
     <div class="dash-panel" style="margin-bottom:16px"><h4>O que está saindo<small>últimas saídas de estoque registradas, mais recente primeiro</small></h4>${saidasHtml}</div>
@@ -3338,6 +3440,9 @@ function renderResumo(){
   document.getElementById('resumoClearFiltersBtn').onclick=()=>{resumoFilters={classe:null,status:null};renderResumo()};
   const irComprasBtn=document.getElementById('resumoIrComprasBtn');
   if(irComprasBtn)irComprasBtn.onclick=()=>switchTab('compras');
+  document.querySelectorAll('[data-ver-negativo]').forEach(btn=>btn.onclick=()=>{
+    lancFilters.produtoId=btn.dataset.verNegativo;lancPage=0;switchTab('lancamentos');
+  });
 }
 function renderCadastro(){
   const locId=activeLocation;
@@ -3395,7 +3500,7 @@ function renderCadastro(){
   const thead=`<tr>${cols.map(([key,label])=>`<th data-sort="${key}">${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
   const rowsHtml=list.map(p=>`<tr data-id="${p.id}">
     <td>${fmtDate(p.data)}</td><td title="${esc(p.nfeId)}">${esc(p.nfeId)}</td><td>${p.dataFaturamento?fmtDate(p.dataFaturamento):'—'}</td><td title="${esc(p.fornecedor)}">${esc(fornecedorExibicao(p.fornecedor))}</td><td title="${esc(p.classe)}">${esc(p.classe)}</td>
-    <td class="col-strong" title="${esc(p.nome)}">${esc(p.nome)}<span data-presence-produto="${p.id}"></span></td><td class="col-num">${fmtNum(p.estoque)}</td><td class="col-num">${fmtMoney(p.valorUnitario)}</td>
+    <td class="col-strong" title="${esc(p.nome)}">${esc(p.nome)}<span data-presence-produto="${p.id}"></span></td><td class="col-num">${estoqueCellHtml(p.estoque)}</td><td class="col-num">${fmtMoney(p.valorUnitario)}</td>
     <td class="col-num">${fmtMoney(p.valorTotal)}</td><td>${esc(p.tipo)}</td><td class="col-status">${statusChip(p.status)}</td>
     <td class="col-num">${fmtNum(p.mediaEfetiva)}${p.mediaEfetivaCalculada?'':(p.mediaEfetiva>0?' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>':'')}</td>${cadastroMostrarFiscal?`<td>${esc(p.ncm)}</td><td>${esc(p.cst)}</td>`:''}
     <td class="col-actions">
@@ -3457,7 +3562,7 @@ function renderCadastroGrouped(list){
   const thead=`<tr>${cols.map(([key,label])=>`<th data-groupsort="${key}">${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
   const rowsHtml=grupoList.map(g=>`<tr data-nome="${esc(g.nome)}">
     <td class="col-strong" title="${esc(g.nome)}">${esc(g.nome)}</td><td title="${esc(g.fornecedorLabel)}">${esc(g.fornecedorLabel)}</td><td title="${esc(g.classeLabel)}">${esc(g.classeLabel)}</td>
-    <td class="col-num">${fmtNum(g.lotes)}</td><td class="col-num">${fmtNum(g.estoque)}</td><td class="col-num">${fmtMoney(g.valorTotal)}</td>
+    <td class="col-num">${fmtNum(g.lotes)}</td><td class="col-num">${estoqueCellHtml(g.estoque)}</td><td class="col-num">${fmtMoney(g.valorTotal)}</td>
     <td class="col-status">${g.statusLabel==='Vários'?'<span class="status-chip status-info">Vários</span>':statusChip(g.statusLabel)}</td>
     <td class="col-num">${fmtNum(g.mediaEfetiva)}</td>
     <td class="col-actions"><button type="button" class="mini-toggle" data-drill="${esc(g.nome)}" title="Ver os lotes deste item">${ICON_LIST}</button></td>
@@ -4824,13 +4929,176 @@ function saveEntryForm(){
   }catch(err){showAlert('entryAlert',err.message);return}
   saveState();renderAll();
   document.getElementById('entryDialog').close();
-  toast(editingEntryId?'Lançamento atualizado.':'Lançamento registrado.');
+  const avisoNeg=avisoEstoqueNegativo(editingEntryLoc,produtoId);
+  toast(avisoNeg||(editingEntryId?'Lançamento atualizado.':'Lançamento registrado.'),!!avisoNeg);
 }
 async function confirmRemoveEntry(locId,id){
   const ok=await confirmModern('Remover este lançamento? O estoque do produto será recalculado.',{title:'Remover lançamento',confirmText:'Remover'});
   if(!ok)return;
   try{removeEntry(locId,id)}catch(err){toast(err.message,true);return}
   saveState();renderAll();toast('Lançamento removido.');
+}
+
+/* ── Diálogo: saída em lote ───────────────────────────────────────────
+   Lança a saída de vários produtos de uma vez, todos pro mesmo destino/
+   data/classe/ciclo — pensado pra quando várias fichas diferentes saem
+   juntas pro mesmo lugar (ex.: separação pra um cliente/pedido), evitando
+   abrir "Novo lançamento" um produto por vez. Cada linha adicionada vira,
+   ao salvar, um addEntry() independente (mesmo caminho/mesmas validações
+   do lançamento avulso) — só o formulário é compartilhado, os
+   lançamentos gravados são normais e aparecem cada um na aba
+   Lançamentos, editáveis/removíveis como qualquer outro.
+   bulkSaidaProdutoGrupos segue o mesmo padrão de entryProdutoGrupos
+   (nome→fichas): produto com mais de uma ficha pergunta de qual NF dar
+   baixa antes de entrar na lista, pra não misturar estoque de fichas
+   diferentes sem querer. */
+let bulkSaidaRows=[],bulkSaidaProdutoGrupos={};
+function openBulkSaidaDialog(){
+  hideAlert('bulkSaidaAlert');
+  document.getElementById('bulkSaidaForm').reset();
+  bulkSaidaRows=[];
+  document.getElementById('bulkSaidaData').value=todayIso();
+  const prods=productsOf(activeLocation).filter(p=>(Number(p.estoque)||0)>0).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  bulkSaidaProdutoGrupos={};
+  prods.forEach(p=>{(bulkSaidaProdutoGrupos[p.nome]=bulkSaidaProdutoGrupos[p.nome]||[]).push(p)});
+  renderBulkSaidaList();
+  document.getElementById('bulkSaidaDialog').showModal();
+}
+function renderBulkSaidaList(){
+  const wrap=document.getElementById('bulkSaidaList'),empty=document.getElementById('bulkSaidaEmpty');
+  empty.hidden=bulkSaidaRows.length>0;
+  wrap.innerHTML=bulkSaidaRows.map((r,i)=>`
+    <div class="bulk-saida-row">
+      <div class="bulk-saida-info"><strong>${esc(r.nome)}</strong><span>${r.nfeId?('NFE '+esc(r.nfeId)+' · '):''}Estoque disponível: ${fmtNum(r.estoque)}${r.tipo?' '+esc(r.tipo):''}</span></div>
+      <div class="bulk-saida-qtd"><input type="text" inputmode="decimal" autocomplete="off" placeholder="Qtd. saída" class="bulk-saida-qtd-input" data-idx="${i}" value="${r.qtd?inputBR(r.qtd):''}"></div>
+      <button type="button" class="mini-remove" data-remove-bulk="${i}" title="Remover">${ICON_TRASH}</button>
+    </div>`).join('');
+  wrap.querySelectorAll('.bulk-saida-qtd-input').forEach(inp=>{
+    inp.oninput=()=>{brNumLiveInput(inp);bulkSaidaRows[Number(inp.dataset.idx)].qtd=numBR(inp.value)};
+  });
+  wrap.querySelectorAll('[data-remove-bulk]').forEach(btn=>btn.onclick=()=>{
+    bulkSaidaRows.splice(Number(btn.dataset.removeBulk),1);
+    renderBulkSaidaList();
+  });
+}
+function addBulkSaidaRow(ficha){
+  if(bulkSaidaRows.some(r=>r.produtoId===ficha.id))return;
+  bulkSaidaRows.push({produtoId:ficha.id,nome:ficha.nome,nfeId:ficha.nfeId,tipo:ficha.tipo,estoque:Number(ficha.estoque)||0,valorUnitario:Number(ficha.valorUnitario)||0,qtd:0});
+  renderBulkSaidaList();
+}
+function wireBulkSaidaProdutoSelect(){
+  const search=document.getElementById('bulkSaidaProdutoSearch'),panel=document.getElementById('bulkSaidaProdutoPanel');
+  if(!search||!panel)return;
+  const render=()=>{
+    const q=normalizeTexto(search.value);
+    const nomes=Object.keys(bulkSaidaProdutoGrupos).filter(n=>!q||normalizeTexto(n).includes(q)).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+    panel.innerHTML=nomes.length?nomes.map(n=>`<div class="combo-option" data-nome="${esc(n)}">${esc(n)}${bulkSaidaProdutoGrupos[n].length>1?`<div class="combo-option-sub">${bulkSaidaProdutoGrupos[n].length} fichas — escolhe de qual NF dar baixa</div>`:''}</div>`).join(''):'<p class="combo-empty">Nenhum resultado (produto sem estoque não aparece).</p>';
+    panel.hidden=false;
+  };
+  const chooseOpt=async opt=>{
+    panel.hidden=true;
+    const fichas=bulkSaidaProdutoGrupos[opt.dataset.nome]||[];
+    let ficha=fichas[0];
+    if(fichas.length>1){
+      const escolhida=await escolherFichaProduto(opt.dataset.nome,fichas);
+      if(!escolhida)return;
+      ficha=escolhida;
+    }
+    if(!ficha)return;
+    addBulkSaidaRow(ficha);
+    search.value='';
+  };
+  search.onfocus=render;
+  search.oninput=render;
+  search.onclick=ev=>{ev.stopPropagation();render()};
+  search.onblur=()=>setTimeout(()=>{panel.hidden=true},150);
+  panel.onmousedown=ev=>{
+    const opt=ev.target.closest('.combo-option');if(!opt)return;
+    ev.preventDefault();
+    chooseOpt(opt);
+  };
+  wireComboKeyboardNav(search,panel,chooseOpt);
+}
+function saveBulkSaidaForm(){
+  hideAlert('bulkSaidaAlert');
+  const data=document.getElementById('bulkSaidaData').value||todayIso();
+  const destino=document.getElementById('bulkSaidaDestino').value.trim();
+  if(!destino){showAlert('bulkSaidaAlert','Informe o destino desta saída em lote.');return}
+  const classe=document.getElementById('bulkSaidaClasse').value.trim();
+  const ciclo=document.getElementById('bulkSaidaCiclo').value.trim();
+  const validRows=bulkSaidaRows.filter(r=>r.qtd>0);
+  if(!validRows.length){showAlert('bulkSaidaAlert','Adicione ao menos um produto e informe a quantidade de saída dele.');return}
+  /* Valida o estoque de TODAS as linhas antes de gravar qualquer uma —
+     tudo ou nada, pra não acabar com metade dos produtos lançados e a
+     outra metade rejeitada por falta de estoque, deixando o lote pela
+     metade sem avisar direito qual entrou e qual não. */
+  for(const r of validRows){
+    const product=locState(activeLocation).products[r.produtoId];
+    if(!product){showAlert('bulkSaidaAlert',`Produto "${r.nome}" não encontrado — remova essa linha e adicione de novo.`);return}
+    if(r.qtd>(Number(product.estoque)||0)){showAlert('bulkSaidaAlert',`Saída de ${fmtNum(r.qtd)} maior que o estoque disponível de "${r.nome}" (${fmtNum(product.estoque)}).`);return}
+  }
+  try{
+    validRows.forEach(r=>{
+      addEntry(activeLocation,{data,destino,saida:r.qtd,produtoId:r.produtoId,valorUnitario:r.valorUnitario,classe,ciclo});
+    });
+  }catch(err){showAlert('bulkSaidaAlert',err.message);saveState();renderAll();return}
+  saveState();renderAll();
+  document.getElementById('bulkSaidaDialog').close();
+  const nomesNegativados=validRows.map(r=>avisoEstoqueNegativo(activeLocation,r.produtoId)&&locState(activeLocation).products[r.produtoId].nome).filter(Boolean);
+  const base=`${validRows.length} saída${validRows.length>1?'s':''} lançada${validRows.length>1?'s':''}.`;
+  toast(nomesNegativados.length?`${base} Atenção: ${nomesNegativados.join(', ')} ficou${nomesNegativados.length>1?'ram':''} com estoque negativo — confira e corrija.`:base,!!nomesNegativados.length);
+}
+
+/* ── Diálogo: gerenciar/renomear destino ──────────────────────────────
+   "Destino" não é um cadastro à parte — é texto livre gravado em cada
+   lançamento (ver entryDestino), sugerido pelos valores já usados
+   (destinosUsed). Sem uma tela própria, corrigir um nome digitado errado
+   exigia editar lançamento por lançamento. Aqui lista os destinos
+   realmente em uso no local aberto (com quantos lançamentos usam cada
+   um) e deixa renomear em cascata — mesmo princípio de
+   renomearFornecedorEmUso, só que aplicado ao texto do destino em vez de
+   um cadastro com id próprio. */
+function gerenciarDestinosContagem(locId){
+  const counts={};
+  entriesOf(locId).forEach(e=>{if(e.destino)counts[e.destino]=(counts[e.destino]||0)+1});
+  return Object.keys(counts).sort((a,b)=>a.localeCompare(b,'pt-BR')).map(destino=>({destino,count:counts[destino]}));
+}
+function openGerenciarDestinosDialog(){
+  hideAlert('gerenciarDestinosAlert');
+  renderGerenciarDestinosList();
+  document.getElementById('gerenciarDestinosDialog').showModal();
+}
+function renderGerenciarDestinosList(){
+  const wrap=document.getElementById('gerenciarDestinosList');
+  const lista=gerenciarDestinosContagem(activeLocation);
+  wrap.innerHTML=lista.length?lista.map(d=>`
+    <div class="list-item">
+      <div><strong>${esc(d.destino)}</strong><span>${d.count} lançamento${d.count>1?'s':''} em ${locLabel(activeLocation)}</span></div>
+      <button type="button" class="mini-edit" data-rename-destino="${esc(d.destino)}" title="Renomear/corrigir">${ICON_EDIT}</button>
+    </div>`).join(''):'<p class="field-help" style="margin:0">Nenhum destino lançado ainda neste local.</p>';
+  wrap.querySelectorAll('[data-rename-destino]').forEach(btn=>btn.onclick=()=>openRenomearDestinoDialog(btn.dataset.renameDestino));
+}
+let renomearDestinoAntigo=null;
+function openRenomearDestinoDialog(nomeAntigo){
+  renomearDestinoAntigo=nomeAntigo;
+  hideAlert('renomearDestinoAlert');
+  document.getElementById('renomearDestinoNome').value=nomeAntigo;
+  document.getElementById('renomearDestinoDialog').showModal();
+}
+function saveRenomearDestinoForm(){
+  const novo=document.getElementById('renomearDestinoNome').value.trim();
+  if(!novo){showAlert('renomearDestinoAlert','Informe um nome.');return}
+  document.getElementById('renomearDestinoDialog').close();
+  if(novo===renomearDestinoAntigo)return;
+  const locId=activeLocation;
+  let count=0;
+  entriesOf(locId).forEach(e=>{
+    if(e.destino===renomearDestinoAntigo){e.destino=novo;recordOp(locId,'entries',e.id,e);count++}
+  });
+  addLog(`renomeou o destino "${renomearDestinoAntigo}" para "${novo}" em ${count} lançamento${count>1?'s':''} em ${locLabel(locId)}`);
+  saveState();renderAll();
+  renderGerenciarDestinosList();
+  toast(`Destino renomeado em ${count} lançamento${count>1?'s':''}.`);
 }
 
 /* ── Diálogo: ajustar estoque (bater com contagem física) ────────────
@@ -5216,6 +5484,8 @@ document.getElementById('cadastroMostrarFiscal').onchange=e=>{cadastroMostrarFis
 document.getElementById('lancSearch').oninput=e=>{lancFilters.search=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('lancFilterTipo').onchange=e=>{lancFilters.tipo=e.target.value;lancPage=0;renderLancamentos()};
 document.getElementById('addEntryBtn').onclick=()=>openEntryDialog();
+document.getElementById('bulkSaidaBtn').onclick=()=>openBulkSaidaDialog();
+document.getElementById('gerenciarDestinosBtn').onclick=()=>openGerenciarDestinosDialog();
 document.getElementById('lancClearFiltersBtn').onclick=()=>{lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:'',nome:null};lancPage=0;document.getElementById('lancSearch').value='';document.getElementById('lancFilterTipo').value='';renderLancamentos()};
 document.getElementById('addFornecedorBtn').onclick=()=>openFornecedorDialog();
 document.getElementById('fornecedorFilterNome').oninput=e=>{fornecedorFilters.nome=e.target.value;renderFornecedores()};
@@ -5235,6 +5505,8 @@ document.getElementById('fornecedoresClearFiltersBtn').onclick=()=>{
 
 document.getElementById('productForm').onsubmit=e=>{e.preventDefault();saveProductForm()};
 document.getElementById('entryForm').onsubmit=e=>{e.preventDefault();saveEntryForm()};
+document.getElementById('bulkSaidaForm').onsubmit=e=>{e.preventDefault();saveBulkSaidaForm()};
+document.getElementById('renomearDestinoForm').onsubmit=e=>{e.preventDefault();saveRenomearDestinoForm()};
 document.getElementById('ajusteEstoqueForm').onsubmit=e=>{e.preventDefault();salvarAjusteEstoque()};
 document.getElementById('renomearUsuarioForm').onsubmit=e=>{e.preventDefault();salvarRenomearUsuario()};
 wireCombo('productNome','productNomePanel',()=>nomesProdutoUsados(activeLocation));
@@ -5267,6 +5539,10 @@ wireCombo('productTipo','productTipoPanel',()=>TIPO_LIST);
 wireCombo('entryClasse','entryClassePanel',()=>classesUsed(activeLocation));
 wireCombo('entryDestino','entryDestinoPanel',()=>destinosUsed(activeLocation));
 wireCombo('entryCiclo','entryCicloPanel',()=>ciclosUsed(activeLocation));
+wireCombo('bulkSaidaDestino','bulkSaidaDestinoPanel',()=>destinosUsed(activeLocation));
+wireCombo('bulkSaidaClasse','bulkSaidaClassePanel',()=>classesUsed(activeLocation));
+wireCombo('bulkSaidaCiclo','bulkSaidaCicloPanel',()=>ciclosUsed(activeLocation));
+wireBulkSaidaProdutoSelect();
 wireSearchSelect('productFornecedor');
 wireSearchSelect('entryFornecedor');
 wireEntryProdutoSelect();
