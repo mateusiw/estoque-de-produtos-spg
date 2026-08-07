@@ -542,6 +542,20 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 .field input,.field select{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:0 14px;outline:none;color:var(--ink);font-size:14.5px}
 .field input:focus,.field select:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--surface)}
 .field input:disabled,.field select:disabled{opacity:.6}
+/* type="search" (em vez de "text") nos campos de busca do combo/
+   search-select (Fornecedor etc.) — truque pra impedir a sugestão NATIVA
+   do navegador (aquele painel preto de "valores já digitados"/endereço
+   que o Chrome mostra por cima do nosso painel branco estilizado,
+   ignorando autocomplete="off"/"new-password" porque ele reconhece o
+   campo como um campo de formulário comum; em campos type="search" o
+   Chrome não aplica essa sugestão). Sem isso aqui, o input type=search
+   herdaria a barrinha de "limpar" (x) nativa do navegador, quebrando o
+   visual — escondida abaixo. */
+.field input[type="search"]{-webkit-appearance:none;appearance:none}
+.field input[type="search"]::-webkit-search-decoration,
+.field input[type="search"]::-webkit-search-cancel-button,
+.field input[type="search"]::-webkit-search-results-button,
+.field input[type="search"]::-webkit-search-results-decoration{-webkit-appearance:none;appearance:none;display:none}
 .field-help{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;display:block}
 .field-help[hidden]{display:none}
 .help-icon{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;
@@ -623,8 +637,20 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 .bulk-saida-row>.bulk-saida-info{min-width:0;flex:1}
 .bulk-saida-row>.bulk-saida-info strong{display:block;font-size:13.5px}
 .bulk-saida-row>.bulk-saida-info span{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+.bulk-saida-row>.bulk-saida-classe{flex:none;width:190px;position:relative}
+/* O painel de sugestões herda largura do pai (.combo-panel usa left:0;
+   right:0) — aqui o pai é só os 190px do campo, estreito demais pra lista
+   de classes. Solta o "right" e dá uma largura própria maior, mais fácil
+   de ler, sem mudar a largura do campo em si. */
+.bulk-saida-row>.bulk-saida-classe .combo-panel{right:auto;width:280px;max-width:min(280px,60vw)}
 .bulk-saida-row>.bulk-saida-qtd{flex:none;width:130px}
-.bulk-saida-row>.bulk-saida-qtd input{width:100%}
+/* Estes dois campos ficam soltos dentro da linha (sem o wrapper .field
+   que dá o estilo padrão de input do resto do app), porque a linha é
+   recriada inteira a cada produto adicionado/removido — replica aqui a
+   mesma cara (.field input) pra não ficarem com a aparência crua do
+   navegador. */
+.bulk-saida-row>.bulk-saida-classe input,.bulk-saida-row>.bulk-saida-qtd input{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);padding:0 14px;outline:none;color:var(--ink);font-size:14.5px}
+.bulk-saida-row>.bulk-saida-classe input:focus,.bulk-saida-row>.bulk-saida-qtd input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft);background:var(--surface)}
 #fornecedorDialog{width:min(860px,calc(100% - 28px))}
 #usersDialog{width:min(820px,calc(100% - 28px))}
 #onlineDialog{width:min(820px,calc(100% - 28px))}
@@ -940,6 +966,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="filter-field"><label>Produto</label><div id="cadastroFilterNomeMount"></div></div>
       <div class="filter-field"><label>Classe</label><div id="cadastroFilterClasseMount"></div></div>
       <div class="filter-field"><label>Status</label><div id="cadastroFilterStatusMount"></div></div>
+      <div class="filter-field"><label for="cadastroFilterTipoControle" title="Estoque: insumo comprado normal. Inventário: patrimônio/ativo (não entra em Resumo/Compras). Produzido: item feito a partir de uma receita.">Tipo</label><select id="cadastroFilterTipoControle"><option value="estoque">Estoque</option><option value="inventario">Inventário</option><option value="produzido">Produzido</option><option value="todos">Todos</option></select></div>
       <div class="filter-field"><label for="cadastroMediaPeriodo" title="Período usado pra calcular a média semanal de uso a partir das saídas lançadas">Média calc.</label><select id="cadastroMediaPeriodo"></select></div>
       <div class="filter-bar-actions">
         <label class="toolbar-check" title="Junta todas as fichas com o mesmo nome (de NFEs/fornecedores diferentes) numa linha só, somando estoque e valor."><input type="checkbox" id="cadastroAgruparNome"> Agrupar por nome</label>
@@ -991,9 +1018,10 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="dialog-body-grid">
         <div class="field"><label for="productData">Data<span class="help-icon" tabindex="0">?<span class="tooltip">Data de referência desta ficha (normalmente a data da compra/NFE). Só serve pra ordenar — não entra em nenhum cálculo de estoque ou de compra.</span></span></label><input id="productData" type="date"></div>
         <div class="field"><label for="productDataFaturamento">Data de faturamento da NF<span class="help-icon" tabindex="0">?<span class="tooltip">Data em que a nota fiscal foi faturada pelo fornecedor — pode ser diferente da data em que o material chegou de fato na empresa (o campo "Data" acima). Só informativo, não entra em nenhum cálculo. Se essa ficha já nascer com uma "Quantidade que já entrou", essa data também é usada na entrada inicial lançada automaticamente.</span></span></label><input id="productDataFaturamento" type="date"></div>
-        <div class="field combo"><label for="productFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta ficha específica. Precisa estar cadastrado na aba Fornecedores pra aparecer na lista — os dados dele (telefone, endereço, e-mail) aparecem automaticamente na solicitação de compra impressa.</span></span></label><select id="productFornecedor" hidden></select><input type="text" id="productFornecedorSearch" name="productFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="productFornecedorPanel" hidden></div><span class="field-help">Não achou? Cadastre na aba <strong>Fornecedores</strong>.</span></div>
+        <div class="field combo"><label for="productFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta ficha específica. Precisa estar cadastrado na aba Fornecedores pra aparecer na lista — os dados dele (telefone, endereço, e-mail) aparecem automaticamente na solicitação de compra impressa.</span></span></label><select id="productFornecedor" hidden></select><input type="search" id="productFornecedorSearch" name="productFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="productFornecedorPanel" hidden></div><span class="field-help">Não achou? Cadastre na aba <strong>Fornecedores</strong>.</span></div>
         <div class="field combo"><label for="productClasse">Classe<span class="help-icon" tabindex="0">?<span class="tooltip">Categoria livre pra organizar e filtrar (ex.: Etiquetas, Bobinas, Cintas). Digite um nome novo ou escolha um já usado — o painel lembra as classes anteriores.</span></span></label><input id="productClasse" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Etiquetas"><div class="combo-panel" id="productClassePanel" hidden></div></div>
         <div class="field combo"><label for="productTipo">Tipo (unidade de medida)<span class="help-icon" tabindex="0">?<span class="tooltip">Unidade de contagem do produto. Escolha uma da lista ou digite a sua, se a que você precisa não estiver nela. Só informativo — aparece nas tabelas e na solicitação de compra, mas não muda nenhum cálculo.</span></span></label><input id="productTipo" class="combo-input" autocomplete="off" maxlength="40" placeholder="Ex.: Unidade, Caixa, Kg..."><div class="combo-panel" id="productTipoPanel" hidden></div></div>
+        <div class="field"><label for="productTipoControle">Tipo de controle<span class="help-icon" tabindex="0">?<span class="tooltip">Estoque: insumo/matéria-prima comprado normal, entra nas contas de estoque e nas sugestões de compra do Resumo/Compras (padrão). Inventário: patrimônio/ativo (ex.: uma impressora de etiqueta) — continua com entrada/saída lançável, mas sai das sugestões de compra e das contas de estoque. Produzido: item feito aqui a partir de uma receita (ficha técnica) de outros produtos "Estoque" — a produção é registrada à parte e dá baixa nos insumos automaticamente.</span></span></label><select id="productTipoControle"><option value="estoque">Estoque</option><option value="inventario">Inventário</option><option value="produzido">Produzido</option></select></div>
         <div class="field"><label for="productValorUnitario">Valor unitário<span class="help-icon" tabindex="0">?<span class="tooltip">Preço de custo real da nota fiscal desta ficha. Multiplicado pela quantidade lançada calcula o Valor Total. Calculado sozinho a partir de "Valor total da nota" ÷ "Quantidade que já entrou" — trava pra digitação direta de propósito, pra nunca ficar um valor arredondado na mão em vez do valor exato. Depois do primeiro lançamento continua travado; use "Corrigir valor da nota" mais abaixo se precisar acertar o valor de uma ficha que já tem lançamento.</span></span></label><div class="money-input"><span>R$</span><input id="productValorUnitario" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00"></div><span class="field-help" id="productValorUnitarioNote" hidden>Valor da nota fiscal — travado depois do primeiro lançamento.</span></div>
         <div class="field" id="productValorNotaField"><label for="productValorNota">Valor total deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quanto esse produto especificamente custou na nota — não o total da nota inteira. Se a nota tiver vários produtos diferentes (mesma NFE, valores diferentes), cadastre uma ficha pra cada um e preencha aqui só o subtotal daquele item (valor dele × quantidade dele), não a soma de tudo. Preenchido junto com "Quantidade que já entrou", o painel calcula sozinho o Valor unitário exato — valor ÷ quantidade, com mais casas decimais do que cabe num preço arredondado. Sem nota fiscal? Deixe em branco — o produto é cadastrado e o estoque é controlado normalmente, só fica sem custo registrado. Campo só de apoio pro cálculo, não é salvo.</span></span></label><div class="money-input"><span>R$</span><input id="productValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this);calcValorUnitarioProduto()"></div></div>
         <div class="field" id="productCustosField" style="grid-column:1 / -1">
@@ -1002,15 +1030,21 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
           <button type="button" class="btn btn-soft" id="productAddCustoBtn" style="margin-top:4px">+ Adicionar custo</button>
           <p class="field-help" id="productCustosTotalNote"></p>
         </div>
+        <div class="field" id="productReceitaField" hidden style="grid-column:1 / -1">
+          <label>Receita (ficha técnica) — insumos por unidade produzida<span class="help-icon" tabindex="0">?<span class="tooltip">Quais produtos do tipo "Estoque" (e quanto de cada um) são necessários pra produzir 1 unidade deste item. O custo por unidade é calculado automaticamente somando o valor unitário atual de cada insumo vezes a quantidade informada, e vira o Valor unitário desta ficha.</span></span></label>
+          <div id="productReceitaList"></div>
+          <button type="button" class="btn btn-soft" id="productAddReceitaBtn" style="margin-top:4px">+ Adicionar insumo</button>
+          <p class="field-help" id="productReceitaCustoNote"></p>
+        </div>
         <div class="field" id="productEntradaInicialField"><label for="productEntradaInicial">Quantidade que já entrou<span class="help-icon" tabindex="0">?<span class="tooltip">Se esse produto já chegou com uma quantidade em mãos, informe aqui — ao salvar, o painel lança sozinho uma entrada de estoque com essa quantidade (usando a data, fornecedor e valor unitário desta ficha), sem precisar abrir a aba Lançamentos separadamente. Deixe em branco pra cadastrar só a ficha, sem estoque ainda.</span></span></label><input id="productEntradaInicial" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioProduto()"></div>
         <div class="field" id="productCorrigirValorNotaField" hidden><label for="productCorrigirValorNota">Corrigir: valor deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Pra acertar o Valor unitário de uma ficha que já tem lançamento (ex.: foi cadastrado arredondado e agora você tem o valor certo). Preencha aqui só o valor deste produto específico na nota (não o total da nota inteira, se ela tiver outros produtos junto) e a quantidade dele ao lado, depois clique em "Recalcular e corrigir lançamentos". Isso reescreve o valor unitário/total do Valor unitário desta ficha E de todos os lançamentos (entradas e saídas) já feitos nela, pra tudo ficar consistente com o valor certo.</span></span></label><div class="money-input"><span>R$</span><input id="productCorrigirValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this)"></div></div>
         <div class="field" id="productCorrigirQtdField" hidden><label for="productCorrigirQtd">Quantidade que veio nessa nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade total que chegou nesta nota fiscal — não é o estoque atual (que já pode ter sido consumido), é a quantidade original da compra. Vem preenchida sozinha com a soma de todas as Entradas já lançadas nessa ficha; ajuste se não bater.</span></span></label><input id="productCorrigirQtd" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
         <div class="field" id="productCorrigirBtnField" hidden style="grid-column:1 / -1"><button type="button" class="btn" id="productCorrigirValorBtn">Recalcular e corrigir lançamentos</button></div>
-        <div class="field"><label for="productMediaUso">Média US/semanal manual <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">O painel prefere sempre calcular a média de uso sozinho, a partir das saídas realmente lançadas dentro do período escolhido no filtro "Média calc.". Este número manual só é usado quando não há nenhuma saída lançada nesse período — produto novo ou de uso raro. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMediaUso" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
-        <div class="field"><label for="productTempoEntregaPronto">Prazo de entrega se pronto (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva pra entregar quando já tem o produto pronto/em estoque dele. Some com a Margem de atraso pra formar o "prazo total"; se o prazo de produção também estiver preenchido, o cálculo usa sempre o maior dos dois, pra cobrir o pior caso. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaPronto" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productTempoEntregaProducao">Prazo de entrega se precisar produzir (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva quando precisa produzir/fabricar antes de entregar (ex.: sob encomenda). Some com a Margem de atraso pra formar o "prazo total"; o cálculo de quando e quanto comprar usa sempre o maior valor entre este e o "se pronto", pra não arriscar ficar sem estoque. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaProducao" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productMargemAtraso">Margem de atraso (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Dias extras de folga pra cobrir a chance do fornecedor atrasar. Somado ao prazo de entrega (o maior entre "se pronto" e "se precisar produzir"), empurra o dia sugerido pra pedir a compra pra mais cedo, como margem de segurança. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMargemAtraso" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
-        <div class="field"><label for="productEstoqueAlvo">Estoque-alvo extra (semanas) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantas semanas de estoque extra (além do prazo de entrega + atraso) você quer ter sobrando depois que a compra chegar. Aumenta a quantidade sugerida de compra pra deixar essa folga. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productEstoqueAlvo" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueAlvoNota()"><span class="field-help" id="productEstoqueAlvoNote">= 0 dias</span></div>
+        <div class="field" id="productMediaUsoField"><label for="productMediaUso">Média US/semanal manual <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">O painel prefere sempre calcular a média de uso sozinho, a partir das saídas realmente lançadas dentro do período escolhido no filtro "Média calc.". Este número manual só é usado quando não há nenhuma saída lançada nesse período — produto novo ou de uso raro. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMediaUso" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this)"></div>
+        <div class="field" id="productTempoEntregaProntoField"><label for="productTempoEntregaPronto">Prazo de entrega se pronto (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva pra entregar quando já tem o produto pronto/em estoque dele. Some com a Margem de atraso pra formar o "prazo total"; se o prazo de produção também estiver preenchido, o cálculo usa sempre o maior dos dois, pra cobrir o pior caso. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaPronto" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field" id="productTempoEntregaProducaoField"><label for="productTempoEntregaProducao">Prazo de entrega se precisar produzir (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantos dias o fornecedor leva quando precisa produzir/fabricar antes de entregar (ex.: sob encomenda). Some com a Margem de atraso pra formar o "prazo total"; o cálculo de quando e quanto comprar usa sempre o maior valor entre este e o "se pronto", pra não arriscar ficar sem estoque. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productTempoEntregaProducao" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field" id="productMargemAtrasoField"><label for="productMargemAtraso">Margem de atraso (dias) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Dias extras de folga pra cobrir a chance do fornecedor atrasar. Somado ao prazo de entrega (o maior entre "se pronto" e "se precisar produzir"), empurra o dia sugerido pra pedir a compra pra mais cedo, como margem de segurança. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productMargemAtraso" type="text" inputmode="numeric" autocomplete="off" placeholder="0" oninput="brIntInput(this)"></div>
+        <div class="field" id="productEstoqueAlvoField"><label for="productEstoqueAlvo">Estoque-alvo extra (semanas) <em style="font-style:normal;color:var(--muted);font-weight:600">(compartilhado)</em><span class="help-icon" tabindex="0">?<span class="tooltip">Quantas semanas de estoque extra (além do prazo de entrega + atraso) você quer ter sobrando depois que a compra chegar. Aumenta a quantidade sugerida de compra pra deixar essa folga. Compartilhado entre todas as fichas deste nome: editar aqui muda pra todas de uma vez.</span></span></label><input id="productEstoqueAlvo" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueAlvoNota()"><span class="field-help" id="productEstoqueAlvoNote">= 0 dias</span></div>
         <div class="field"><label>Status<span class="help-icon" tabindex="0">?<span class="tooltip">Situação de uso do produto. Vira "Concluído" sozinho quando o estoque chega a 0 (não dá pra editar nessa hora); enquanto tiver estoque, escolha uma das caixas abaixo.</span></span></label><select id="productStatus" hidden></select><div class="status-box-group" id="productStatusBoxes"></div><span class="field-help" id="productStatusNote" hidden>Vira "Concluído" automaticamente quando o estoque chegar a 0.</span></div>
         <div class="field"><label for="productNcm">NCM<span class="help-icon" tabindex="0">?<span class="tooltip">Código fiscal do produto (Nomenclatura Comum do Mercosul), se você usa isso pra nota fiscal. Só informativo, não afeta o painel.</span></span></label><input id="productNcm" maxlength="20"></div>
         <div class="field"><label for="productCst">CST<span class="help-icon" tabindex="0">?<span class="tooltip">Código de Situação Tributária, se precisar registrar pra nota fiscal. Só informativo, não afeta o painel.</span></span></label><input id="productCst" maxlength="20"></div>
@@ -1018,6 +1052,21 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       </div>
     </div>
     <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancelar</button><button type="button" class="btn" id="productSaveNextBtn" title="Salva este produto e limpa os campos específicos (nome, classe, valor, quantidade, prazo de entrega...) pra você cadastrar o próximo item da mesma nota, sem fechar o diálogo nem redigitar Data/Fornecedor/NFE.">Salvar e cadastrar outro</button><button type="submit" class="btn btn-primary" id="productSave">Salvar produto</button></div>
+  </form>
+</dialog>
+
+<dialog id="productionDialog">
+  <form method="dialog" id="productionForm">
+    <div class="dialog-head"><div><h3 id="productionDialogTitle">Registrar produção</h3><p>Dá baixa automática nos insumos da receita e lança a entrada do produto final, no custo calculado desta produção.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
+    <div class="dialog-body">
+      <p class="dialog-alert" id="productionAlert" hidden></p>
+      <div class="dialog-body-grid">
+        <div class="field"><label for="productionData">Data</label><input id="productionData" type="date"></div>
+        <div class="field"><label for="productionQuantidade">Quantidade produzida</label><input id="productionQuantidade" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarPreviewProducao()"></div>
+      </div>
+      <div id="productionPreview" style="margin-top:12px"></div>
+    </div>
+    <div class="dialog-foot"><button type="button" class="btn" onclick="this.closest('dialog').close()">Cancelar</button><button type="submit" class="btn btn-primary" id="productionSave">Registrar produção</button></div>
   </form>
 </dialog>
 
@@ -1031,11 +1080,11 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
         <div class="field"><label for="entryData">Data que chegou no estoque<span class="help-icon" tabindex="0">?<span class="tooltip">Data real da movimentação física (quando o material chegou/saiu de verdade na empresa). O painel usa essa data pra calcular o saldo em ordem cronológica e pra decidir se ela entra nas "saídas da semana" do Relatório e na média de uso calculada.</span></span></label><input id="entryData" type="date"></div>
         <div class="field"><label for="entryDataFaturamento">Data de faturamento da NF<span class="help-icon" tabindex="0">?<span class="tooltip">Data em que a nota fiscal foi faturada pelo fornecedor — pode ser diferente da data em que o material chegou de fato na empresa. Só informativo, não entra em nenhum cálculo.</span></span></label><input id="entryDataFaturamento" type="date"></div>
         <div class="field combo"><label for="entryDestino">Destino<span class="help-icon" tabindex="0">?<span class="tooltip">Pra onde foi (ou de onde veio) esta movimentação — ex.: Entrada Estoque, nome de um cliente, Descarte. Usado nos filtros da aba Lançamentos e no Relatório.</span></span></label><input id="entryDestino" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Entrada Estoque, Descarte, nome do cliente..."><div class="combo-panel" id="entryDestinoPanel" hidden></div></div>
-        <div class="field"><label for="entryEntrada">Entrada<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que ENTROU no estoque (compra, ajuste positivo...). Preencha só Entrada OU Saída neste lançamento, nunca as duas juntas.</span></span></label><input id="entryEntrada" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioEntry();atualizarEstoqueDisponivelEntry()"></div>
+        <div class="field"><label for="entryEntrada">Entrada<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que ENTROU no estoque (compra, ajuste positivo...). Preencha só Entrada OU Saída neste lançamento, nunca as duas juntas.</span></span></label><input id="entryEntrada" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);calcValorUnitarioEntry();atualizarEstoqueDisponivelEntry()"><span class="field-help" id="entryEntradaProduzidoNote" hidden>Este produto é "Produzido" — use "Registrar produção" na ficha dele pra dar entrada (dá baixa nos insumos automaticamente).</span></div>
         <div class="field"><label for="entrySaida">Saída<span class="help-icon" tabindex="0">?<span class="tooltip">Quantidade que SAIU do estoque (uso, venda, descarte...). É a partir da soma das saídas que o painel calcula sozinho a média de uso semanal do produto.</span></span></label><input id="entrySaida" type="text" inputmode="decimal" autocomplete="off" placeholder="0" oninput="brNumLiveInput(this);atualizarEstoqueDisponivelEntry()"><span class="field-help" id="entryEstoqueDisponivel"></span></div>
         <div class="field"><label for="entryValorUnitario">Valor unitário<span class="help-icon" tabindex="0">?<span class="tooltip">Preço desta movimentação específica (pode variar de lote pra lote). Multiplicado pela quantidade, calcula o Valor Total deste lançamento. Numa Entrada com nota fiscal, preencha "Valor total da nota" ao lado — este campo é calculado sozinho (valor da nota ÷ quantidade) e trava pra edição manual enquanto isso. Numa Saída, ou se não tiver o valor total da nota, digite aqui direto.</span></span></label><div class="money-input"><span>R$</span><input id="entryValorUnitario" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this)"></div><span class="field-help" id="entryValorUnitarioNote" hidden>Calculado automaticamente: valor da nota ÷ quantidade.</span></div>
         <div class="field"><label for="entryValorNota">Valor total deste item na nota<span class="help-icon" tabindex="0">?<span class="tooltip">Quanto esse produto especificamente custou na nota (só faz sentido numa Entrada, não numa Saída) — não o total da nota inteira, se ela tiver outros produtos junto. Preenchido junto com "Entrada", o painel calcula sozinho o Valor unitário exato — valor ÷ quantidade, com mais casas decimais do que cabe num preço arredondado. Campo só de apoio pro cálculo, não é salvo.</span></span></label><div class="money-input"><span>R$</span><input id="entryValorNota" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" oninput="brMoneyLiveInput(this);calcValorUnitarioEntry()"></div></div>
-        <div class="field combo"><label for="entryFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta movimentação específica. Já vem preenchido com o fornecedor padrão do produto, mas pode trocar se este lote em particular veio de outro fornecedor.</span></span></label><select id="entryFornecedor" hidden></select><input type="text" id="entryFornecedorSearch" name="entryFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="entryFornecedorPanel" hidden></div></div>
+        <div class="field combo"><label for="entryFornecedorSearch">Fornecedor<span class="help-icon" tabindex="0">?<span class="tooltip">Fornecedor desta movimentação específica. Já vem preenchido com o fornecedor padrão do produto, mas pode trocar se este lote em particular veio de outro fornecedor.</span></span></label><select id="entryFornecedor" hidden></select><input type="search" id="entryFornecedorSearch" name="entryFornecedorSearch_nofill" class="combo-input" autocomplete="new-password" placeholder="Buscar fornecedor..."><div class="combo-panel" id="entryFornecedorPanel" hidden></div></div>
         <div class="field combo"><label for="entryClasse">Classe (onde foi usado)<span class="help-icon" tabindex="0">?<span class="tooltip">Pra onde o item foi consumido, se for diferente da classe do produto — ex.: em qual produto final ou cultura ele entrou. Campo livre, só informativo.</span></span></label><input id="entryClasse" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Tomate Bombom 180g"><div class="combo-panel" id="entryClassePanel" hidden></div></div>
         <div class="field combo"><label for="entryCiclo">Ciclo<span class="help-icon" tabindex="0">?<span class="tooltip">Agrupamento livre por safra/ciclo de produção, se você usa isso pra organizar os lançamentos. Opcional.</span></span></label><input id="entryCiclo" class="combo-input" autocomplete="off" maxlength="60"><div class="combo-panel" id="entryCicloPanel" hidden></div></div>
         <div class="field"><label for="entryNfe">NFE / ID<span class="help-icon" tabindex="0">?<span class="tooltip">Número da nota fiscal ou outro identificador desta movimentação. Editar aqui num lançamento já existente corrige em cascata: atualiza também o NFE/ID do cadastro do produto e de todos os outros lançamentos dessa mesma ficha, pra manter tudo consistente.</span></span></label><input id="entryNfe" maxlength="40"></div>
@@ -1053,7 +1102,6 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       <div class="dialog-body-grid">
         <div class="field"><label for="bulkSaidaData">Data que saiu do estoque</label><input id="bulkSaidaData" type="date"></div>
         <div class="field combo"><label for="bulkSaidaDestino">Destino<span class="help-icon" tabindex="0">?<span class="tooltip">Pra onde foi esta movimentação — ex.: nome de um cliente, Descarte. Aplicado a todos os produtos lançados aqui.</span></span></label><input id="bulkSaidaDestino" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Descarte, nome do cliente..."><div class="combo-panel" id="bulkSaidaDestinoPanel" hidden></div></div>
-        <div class="field combo"><label for="bulkSaidaClasse">Classe (onde foi usado)</label><input id="bulkSaidaClasse" class="combo-input" autocomplete="off" maxlength="60" placeholder="Ex.: Tomate Bombom 180g"><div class="combo-panel" id="bulkSaidaClassePanel" hidden></div></div>
         <div class="field combo"><label for="bulkSaidaCiclo">Ciclo</label><input id="bulkSaidaCiclo" class="combo-input" autocomplete="off" maxlength="60"><div class="combo-panel" id="bulkSaidaCicloPanel" hidden></div></div>
       </div>
       <div class="field combo" style="margin-top:6px"><label for="bulkSaidaProdutoSearch">Adicionar produto</label><input type="text" id="bulkSaidaProdutoSearch" class="combo-input" autocomplete="off" placeholder="Buscar produto pra adicionar à lista..."><div class="combo-panel" id="bulkSaidaProdutoPanel" hidden></div></div>
@@ -1411,6 +1459,7 @@ const ICON_CHECK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const ICON_KEY='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
 const ICON_ADJUST='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>';
 const ICON_RESET='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+const ICON_PRODUCE='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V9l6 4V9l6 4V9l6 4v8H3Z"/><path d="M3 21h18"/></svg>';
 
 /* ── Config / constantes ─────────────────────────────────────────── */
 const STORAGE_KEY='spg_produtos_v1', THEME_KEY='spg_produtos_theme';
@@ -1446,6 +1495,14 @@ const LOCATIONS=[{id:'sede',label:'Sede'},{id:'oasis',label:'Oásis'},{id:'estuf
 const STATUS_MANUAL=['Sendo Utilizado','Uso inconstante','Fora de uso'];
 const STATUS_ALL=['Concluído','Sendo Utilizado','Uso inconstante','Fora de uso'];
 const STATUS_CLASS={'Concluído':'ok','Sendo Utilizado':'info','Uso inconstante':'warn','Fora de uso':'bad'};
+/* Tipo de controle da ficha: "estoque" (padrão, insumo/matéria-prima
+   comprado — entra nas contas de Resumo/Compras normalmente),
+   "inventario" (patrimônio/ativo, ex.: impressora de etiqueta — continua
+   com entrada/saída lançável, mas sai das contas de compra/estoque) e
+   "produzido" (item feito internamente a partir de uma receita — ver
+   registrarProducao). */
+const TIPO_CONTROLE_LIST=['estoque','inventario','produzido'];
+const TIPO_CONTROLE_LABEL={estoque:'Estoque',inventario:'Inventário',produzido:'Produzido'};
 const TIPO_LIST=['Unidade','Par','Dúzia','Cento','Milheiro','Kit','Conjunto',
   'Pacote','Caixa','Fardo','Saco','Engradado','Pallet','Bandeja','Display',
   'Rolo','Bobina','Peça','Folha','Resma',
@@ -1600,7 +1657,7 @@ function wireComboKeyboardNav(input,panel,chooseOpt){
     comboPanelSetActive(panel,comboPanelOptions(panel).indexOf(opt));
   });
 }
-function wireCombo(inputId,panelId,getOptions){
+function wireCombo(inputId,panelId,getOptions,onChoose){
   const input=document.getElementById(inputId),panel=document.getElementById(panelId);
   if(!input||!panel)return;
   const render=()=>{
@@ -1613,6 +1670,7 @@ function wireCombo(inputId,panelId,getOptions){
   const chooseOpt=opt=>{
     input.value=opt.dataset.value;
     panel.hidden=true;
+    if(onChoose)onChoose(input.value);
   };
   input.onfocus=render;
   input.oninput=render;
@@ -2186,6 +2244,10 @@ function garantirActiveLocationPermitida(){
 }
 function locState(id){state.locations[id]=state.locations[id]||emptyLocation();return state.locations[id]}
 function productsOf(id){return Object.values(locState(id).products)}
+/* Só os itens "estoque" (padrão) — usado onde entra conta de compra/
+   reposição (Resumo, Compras), pra "inventario"/"produzido" ficarem de
+   fora dessas contas sem precisar filtrar em cada lugar separadamente. */
+function productsEstoque(id){return productsOf(id).filter(p=>(p.tipoControle||'estoque')==='estoque')}
 function entriesOf(id){return Object.values(locState(id).entries)}
 function entriesForProduct(id,productId){return entriesOf(id).filter(e=>e.produtoId===productId)}
 function classesUsed(id){return [...new Set(productsOf(id).map(p=>p.classe).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'))}
@@ -2735,6 +2797,8 @@ function addProduct(locId,data){
     nome:data.nome,estoque:0,valorUnitario:numBR(data.valorUnitario),valorTotal:0,tipo:data.tipo||'Unidade',status:'Concluído',
     statusManual:'Sendo Utilizado',mediaUsoSemanal:numBR(data.mediaUsoSemanal),ncm:data.ncm||'',cst:data.cst||'',
     custosAdicionais:data.custosAdicionais||[],
+    tipoControle:TIPO_CONTROLE_LIST.includes(data.tipoControle)?data.tipoControle:'estoque',
+    receita:data.receita||[],
     createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   locState(locId).products[id]=product;
   recordOp(locId,'products',id,product);
@@ -2745,7 +2809,7 @@ function updateProduct(locId,id,data){
   const product=locState(locId).products[id];if(!product)return;
   const oldNfeId=product.nfeId;
   const antes={data:product.data,dataFaturamento:product.dataFaturamento,nfeId:product.nfeId,fornecedor:product.fornecedor,classe:product.classe,nome:product.nome,
-    tipo:product.tipo,ncm:product.ncm,cst:product.cst,valorUnitario:product.valorUnitario,statusManual:product.statusManual};
+    tipo:product.tipo,ncm:product.ncm,cst:product.cst,valorUnitario:product.valorUnitario,statusManual:product.statusManual,tipoControle:product.tipoControle||'estoque'};
   ['data','dataFaturamento','nfeId','fornecedor','classe','nome','tipo','ncm','cst'].forEach(k=>{if(data[k]!=null)product[k]=data[k]});
   /* A ficha do produto representa uma NFE só — todo lançamento feito nela
      pertence a essa mesma nota. Se o número mudar no cadastro, corrige
@@ -2756,6 +2820,8 @@ function updateProduct(locId,id,data){
   }
   if(data.mediaUsoSemanal!=null)product.mediaUsoSemanal=numBR(data.mediaUsoSemanal);
   if(data.custosAdicionais!=null)product.custosAdicionais=data.custosAdicionais;
+  if(data.tipoControle!=null&&TIPO_CONTROLE_LIST.includes(data.tipoControle))product.tipoControle=data.tipoControle;
+  if(data.receita!=null)product.receita=data.receita;
   if(data.valorUnitario!=null&&!entriesForProduct(locId,id).length)product.valorUnitario=numBR(data.valorUnitario);
   if(data.status&&STATUS_MANUAL.includes(data.status))product.statusManual=data.status;
   recalcProduct(locId,id);
@@ -2776,11 +2842,77 @@ function updateProduct(locId,id,data){
   if(antes.cst!==product.cst)partes.push(`CST: "${antes.cst||'—'}" → "${product.cst||'—'}"`);
   if(antes.valorUnitario!==product.valorUnitario)partes.push(`valor unitário: ${fmtMoney(antes.valorUnitario)} → ${fmtMoney(product.valorUnitario)}`);
   if(antes.statusManual!==product.statusManual)partes.push(`status: "${antes.statusManual}" → "${product.statusManual}"`);
+  if(antes.tipoControle!==(product.tipoControle||'estoque'))partes.push(`tipo de controle: "${TIPO_CONTROLE_LABEL[antes.tipoControle]}" → "${TIPO_CONTROLE_LABEL[product.tipoControle||'estoque']}"`);
   addLog(`editou o produto "${antes.nome}" em ${locLabel(locId)}${partes.length?` — ${partes.join(', ')}`:''}`);
+}
+/* Impede apagar um insumo que uma receita (ficha técnica) de algum
+   produto "produzido" ainda depende — senão a receita ficava apontando
+   pra um produtoId inexistente e o custo calculado quebrava silenciosamente. */
+function produtoEhInsumoEmUso(locId,produtoId){
+  return productsOf(locId).some(p=>p.tipoControle==='produzido'&&(p.receita||[]).some(item=>item.produtoId===produtoId));
+}
+/* Custo por unidade de um produto "produzido": soma do valorUnitario
+   ATUAL de cada insumo da receita vezes a quantidade necessária — sempre
+   ao vivo (reflete o preço mais recente do insumo), usado tanto no preview
+   do diálogo quanto como valorUnitario do lançamento de produção. */
+function custoReceita(locId,receita){
+  const products=locState(locId).products;
+  return round2((receita||[]).reduce((s,item)=>{
+    const insumo=products[item.produtoId];
+    return s+(insumo?Number(insumo.valorUnitario)||0:0)*(Number(item.quantidade)||0);
+  },0));
+}
+/* Pra cada insumo da receita, quanto seria necessário pra produzir
+   `multiplicador` unidades e quanto falta em relação ao estoque atual —
+   só retorna os que FALTAM (falta>0), pra validar uma produção antes de
+   mexer em qualquer estoque. */
+function receitaFaltando(locId,receita,multiplicador){
+  const products=locState(locId).products;
+  return (receita||[]).map(item=>{
+    const insumo=products[item.produtoId];
+    const necessario=round2((Number(item.quantidade)||0)*multiplicador);
+    const disponivel=insumo?Number(insumo.estoque)||0:0;
+    return {produtoId:item.produtoId,nome:insumo?insumo.nome:'(produto removido)',necessario,disponivel,falta:round2(necessario-disponivel)};
+  }).filter(r=>r.falta>0);
+}
+/* Registra uma produção: valida que todos os insumos da receita têm
+   estoque suficiente ANTES de mexer em qualquer coisa (pra não aplicar só
+   metade da baixa se um insumo faltar no meio do caminho), depois
+   reaproveita addEntry pra dar saída em cada insumo e entrada no produto
+   final — addEntry já cuida de recalc/log/sync sozinho pra cada
+   movimentação. O valorUnitario da entrada do produzido é o custo da
+   receita calculado agora, que fica travado depois (mesma regra de
+   "trava depois do primeiro lançamento" que já vale pra ficha normal). */
+function registrarProducao(locId,produtoId,dataForm){
+  const product=locState(locId).products[produtoId];
+  if(!product)throw new Error('Produto inválido.');
+  if((product.tipoControle||'estoque')!=='produzido')throw new Error('Este produto não é do tipo "Produzido".');
+  const receita=product.receita||[];
+  if(!receita.length)throw new Error('Este produto ainda não tem uma receita (ficha técnica) cadastrada.');
+  const quantidade=numBR(dataForm.quantidade);
+  if(quantidade<=0)throw new Error('Informe a quantidade produzida.');
+  const faltando=receitaFaltando(locId,receita,quantidade);
+  if(faltando.length){
+    const msg=faltando.map(f=>`"${f.nome}" (falta ${fmtNum(f.falta)})`).join(', ');
+    throw new Error(`Estoque insuficiente pra produzir ${fmtNum(quantidade)} "${product.nome}": ${msg}.`);
+  }
+  const custoUnitario=custoReceita(locId,receita);
+  const data=dataForm.data||todayIso();
+  const consumos=[];
+  receita.forEach(item=>{
+    const insumo=locState(locId).products[item.produtoId];
+    const consumo=round2((Number(item.quantidade)||0)*quantidade);
+    consumos.push(`${insumo?insumo.nome:'?'} x${fmtNum(consumo)}`);
+    addEntry(locId,{data,produtoId:item.produtoId,saida:consumo,
+      destino:`Produção de "${product.nome}"`,classe:insumo?insumo.classe:'',fornecedor:insumo?insumo.fornecedor:'',nfeId:insumo?insumo.nfeId:''});
+  });
+  addEntry(locId,{data,produtoId,entrada:quantidade,valorUnitario:custoUnitario,destino:'Produção',classe:product.classe,fornecedor:product.fornecedor,nfeId:product.nfeId});
+  addLog(`registrou produção de ${fmtNum(quantidade)} "${product.nome}" em ${locLabel(locId)} — consumiu: ${consumos.join(', ')} — custo unitário ${fmtMoney(custoUnitario)}, total ${fmtMoney(round2(custoUnitario*quantidade))}`);
 }
 function removeProduct(locId,id){
   const product=locState(locId).products[id];if(!product)return false;
   if(entriesForProduct(locId,id).length)return false;
+  if(produtoEhInsumoEmUso(locId,id))return false;
   delete locState(locId).products[id];
   recordOp(locId,'products',id,null);
   addLog(`removeu o produto "${product.nome}" em ${locLabel(locId)}`);
@@ -2912,7 +3044,7 @@ async function confirmRemoverTodosLancamentosProduto(locId,produtoId){
 }
 
 /* ── Renderização ────────────────────────────────────────────────── */
-let cadastroSort={col:'nome',dir:1}, cadastroFilters={search:'',classe:null,status:new Set(['Sendo Utilizado']),nomeExato:'',nome:null};
+let cadastroSort={col:'nome',dir:1}, cadastroFilters={search:'',classe:null,status:new Set(['Sendo Utilizado']),nomeExato:'',nome:null,tipoControle:'estoque'};
 let cadastroGroupSort={col:'nome',dir:1}, cadastroGroupByName=false;
 /* NCM/CST só interessam a quem mexe com nota fiscal — ficam escondidas
    por padrão pra tabela do Cadastro não competir espaço/atenção com as
@@ -3360,7 +3492,10 @@ function renderResumo(){
      um problema de dado que precisa aparecer sempre, senão um filtro
      ativo esconderia justamente o produto que precisa de correção. */
   const negativos=produtosComEstoqueNegativo(locId);
-  let products=productsOf(locId);
+  /* productsEstoque (não productsOf): itens "inventario"/"produzido" não
+     entram nas contas de valor/sugestão de compra do Resumo — ver
+     TIPO_CONTROLE_LIST. */
+  let products=productsEstoque(locId);
   if(resumoFilters.classe)products=products.filter(p=>resumoFilters.classe.has(p.classe));
   if(resumoFilters.status)products=products.filter(p=>resumoFilters.status.has(p.status));
   const filteredIds=new Set(products.map(p=>p.id));
@@ -3454,6 +3589,7 @@ function renderCadastro(){
   wireMultiselect('cadastroFilterClasse',classeOptions,()=>cadastroFilters.classe,v=>cadastroFilters.classe=v,renderCadastro);
   document.getElementById('cadastroFilterStatusMount').innerHTML=multiselectHtml('cadastroFilterStatus','Todos os status',STATUS_ALL,cadastroFilters.status);
   wireMultiselect('cadastroFilterStatus',STATUS_ALL,()=>cadastroFilters.status,v=>cadastroFilters.status=v,renderCadastro);
+  document.getElementById('cadastroFilterTipoControle').value=cadastroFilters.tipoControle||'estoque';
   document.getElementById('cadastroMediaPeriodo').innerHTML=mediaPeriodoOptionsHtml();
   document.getElementById('cadastroAgruparNome').checked=cadastroGroupByName;
   document.getElementById('cadastroMostrarFiscal').checked=cadastroMostrarFiscal;
@@ -3474,6 +3610,7 @@ function renderCadastro(){
   if(cadastroFilters.status)list=list.filter(p=>cadastroFilters.status.has(p.status));
   if(cadastroFilters.nome)list=list.filter(p=>cadastroFilters.nome.has(p.nome));
   if(cadastroFilters.nomeExato)list=list.filter(p=>p.nome===cadastroFilters.nomeExato);
+  if(cadastroFilters.tipoControle&&cadastroFilters.tipoControle!=='todos')list=list.filter(p=>(p.tipoControle||'estoque')===cadastroFilters.tipoControle);
 
   const valorTotalFiltrado=list.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
   const estoqueTotalFiltrado=list.reduce((s,p)=>s+(Number(p.estoque)||0),0);
@@ -3504,6 +3641,7 @@ function renderCadastro(){
     <td class="col-num">${fmtMoney(p.valorTotal)}</td><td>${esc(p.tipo)}</td><td class="col-status">${statusChip(p.status)}</td>
     <td class="col-num">${fmtNum(p.mediaEfetiva)}${p.mediaEfetivaCalculada?'':(p.mediaEfetiva>0?' <span title="Sem saída no período selecionado — usando o valor manual do cadastro." style="cursor:help;color:var(--muted)">✱</span>':'')}</td>${cadastroMostrarFiscal?`<td>${esc(p.ncm)}</td><td>${esc(p.cst)}</td>`:''}
     <td class="col-actions">
+      ${p.tipoControle==='produzido'&&(p.receita||[]).length?`<button type="button" class="mini-toggle" data-registrar-producao="${p.id}" title="Registrar produção">${ICON_PRODUCE}</button>`:''}
       <button type="button" class="mini-adjust" data-adjust-stock="${p.id}" title="Ajustar estoque">${ICON_ADJUST}</button>
       <button type="button" class="mini-toggle" data-view-entries="${p.id}" title="Ver lançamentos">${ICON_LIST}</button>
       <button type="button" class="mini-edit" data-edit-product="${p.id}" title="Editar">${ICON_EDIT}</button>
@@ -3524,6 +3662,7 @@ function wireCadastroTableEvents(){
   document.querySelectorAll('#cadastroTable [data-remove-product]').forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();confirmRemoveProduct(activeLocation,btn.dataset.removeProduct)});
   document.querySelectorAll('#cadastroTable [data-view-entries]').forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();lancFilters.produtoId=btn.dataset.viewEntries;lancPage=0;switchTab('lancamentos')});
   document.querySelectorAll('#cadastroTable [data-adjust-stock]').forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();openAjusteEstoqueDialog(activeLocation,btn.dataset.adjustStock)});
+  document.querySelectorAll('#cadastroTable [data-registrar-producao]').forEach(btn=>btn.onclick=ev=>{ev.stopPropagation();openProductionDialog(btn.dataset.registrarProducao)});
   document.querySelectorAll('#cadastroTable tbody tr[data-id]').forEach(tr=>tr.onclick=()=>openProductDialog(tr.dataset.id));
 }
 /* Agrupa por nome: junta todas as fichas com o mesmo "ID do produto" (que
@@ -4007,7 +4146,7 @@ function diferencaUltimoPrecoHtml(atual,ultimo){
    fichaReferenciaDoGrupo) já que podem variar entre fichas do mesmo
    nome. */
 function comprasRows(locId){
-  return agruparPorNomeParaCompra(locId,productsOf(locId)).filter(r=>r.info.aplicavel).map(r=>{
+  return agruparPorNomeParaCompra(locId,productsEstoque(locId)).filter(r=>r.info.aplicavel).map(r=>{
     const fornecedores=new Set(r.fichas.map(p=>p.fornecedor).filter(Boolean));
     const classes=new Set(r.fichas.map(p=>p.classe).filter(Boolean));
     const statusSet=new Set(r.fichas.map(p=>p.status));
@@ -4384,6 +4523,25 @@ function buildRelatorioHtml(locId){
       ||'<tr><td colspan="6">Nenhuma saída registrada no período.</td></tr>';
   }
 
+  /* Fichas técnicas / custo de produção: só os produtos "produzido" desta
+     loc, com a composição da receita (insumo, qtd, custo unit. do insumo,
+     subtotal) e o custo por unidade calculado — visão de conferência, não
+     entra nos filtros de Classe/Status/Produto do resto do relatório (a
+     receita é uma propriedade fixa do produto, não do período). */
+  const produzidos=productsOf(locId).filter(p=>p.tipoControle==='produzido');
+  const producaoHtml=produzidos.map(p=>{
+    const receita=p.receita||[];
+    const linhasReceita=receita.map(item=>{
+      const insumo=locState(locId).products[item.produtoId];
+      const valorInsumo=insumo?Number(insumo.valorUnitario)||0:0;
+      const subtotal=round2(valorInsumo*(Number(item.quantidade)||0));
+      return `<tr><td>${esc(insumo?insumo.nome:'(produto removido)')}</td><td class="num">${fmtNum(item.quantidade)}</td><td class="num">${fmtMoney(valorInsumo)}</td><td class="num">${fmtMoney(subtotal)}</td></tr>`;
+    }).join('')||'<tr><td colspan="4">Sem receita cadastrada.</td></tr>';
+    const custoUnit=custoReceita(locId,receita);
+    return `<p class="group-title">${esc(p.nome)} — custo por unidade: ${fmtMoney(custoUnit)} · estoque atual: ${fmtNum(p.estoque)} unidade(s) (${fmtMoney(round2(custoUnit*(Number(p.estoque)||0)))})</p>
+      <table><thead><tr><th>Insumo</th><th class="num">Qtd./unidade</th><th class="num">Valor unit. insumo</th><th class="num">Subtotal</th></tr></thead><tbody>${linhasReceita}</tbody></table>`;
+  }).join('');
+
   return `<div class="print-doc">
     <div class="print-head">
       <img class="print-logo" src="icon.png" alt="">
@@ -4404,6 +4562,7 @@ function buildRelatorioHtml(locId){
       <div><span>Média de saída por semana</span><strong>${fmtMoney(valorSaidaTotal/diasPeriodo*7)}</strong></div>
     </div>
     <table><thead>${saidaHead}</thead><tbody>${rowsSaida}</tbody></table>
+    ${produzidos.length?`<h2>Fichas técnicas / custo de produção (${fmtNum(produzidos.length)} produto(s))</h2>${producaoHtml}`:''}
   </div>`;
 }
 function renderRelatorio(){
@@ -4521,6 +4680,111 @@ function renderProductCustosList(){
 function addCustoRow(){
   productCustosAdicionais.push({descricao:'',nfeId:'',valor:0});
   renderProductCustosList();
+}
+/* Receita (ficha técnica) desta ficha — só usada quando Tipo de controle
+   é "produzido". Mesmo padrão transiente de productCustosAdicionais:
+   populada em openProductDialog a partir de p.receita, gravada no produto
+   em persistProductForm. Cada linha aponta pra um produtoId (só produtos
+   "estoque" desta mesma loc, sem contar o próprio produto em edição) +
+   quantidade necessária pra produzir 1 unidade. */
+let productReceita=[];
+function insumosDisponiveis(){
+  return productsOf(editingProductLoc).filter(p=>(p.tipoControle||'estoque')==='estoque'&&p.id!==editingProductId)
+    .sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+}
+function renderProductReceitaList(){
+  const wrap=document.getElementById('productReceitaList');
+  if(!wrap)return;
+  const insumos=insumosDisponiveis();
+  wrap.innerHTML=productReceita.map((r,i)=>{
+    const opts=insumos.map(p=>`<option value="${p.id}"${p.id===r.produtoId?' selected':''}>${esc(p.nome)}</option>`).join('');
+    return `<div class="field-inline" style="margin-bottom:8px">
+      <select class="receita-produto-select" data-idx="${i}" style="flex:2"><option value="">— Selecione o insumo —</option>${opts}</select>
+      <input type="text" inputmode="decimal" class="receita-qtd-input" data-idx="${i}" autocomplete="off" placeholder="Qtd. por unidade" style="flex:1" value="${r.quantidade?inputBR(r.quantidade):''}">
+      <button type="button" class="mini-remove" data-remove-receita="${i}" title="Remover">${ICON_TRASH}</button>
+    </div>`;
+  }).join('')+(insumos.length?'':'<p class="combo-empty">Nenhum produto do tipo "Estoque" cadastrado ainda neste local — cadastre os insumos primeiro.</p>');
+  wrap.querySelectorAll('.receita-produto-select').forEach(sel=>sel.onchange=()=>{
+    productReceita[sel.dataset.idx].produtoId=sel.value;
+    atualizarCustoReceitaNote();
+  });
+  wrap.querySelectorAll('.receita-qtd-input').forEach(inp=>inp.oninput=()=>{
+    brNumLiveInput(inp);
+    productReceita[inp.dataset.idx].quantidade=numBR(inp.value);
+    atualizarCustoReceitaNote();
+  });
+  wrap.querySelectorAll('[data-remove-receita]').forEach(btn=>btn.onclick=()=>{
+    productReceita.splice(Number(btn.dataset.removeReceita),1);
+    renderProductReceitaList();
+    atualizarCustoReceitaNote();
+  });
+}
+function addReceitaRow(){
+  productReceita.push({produtoId:'',quantidade:0});
+  renderProductReceitaList();
+}
+/* Custo por unidade calculado ao vivo enquanto a receita é editada —
+   mostra na nota abaixo da lista e, se o tipo de controle for "produzido",
+   também reflete direto no campo Valor unitário (que fica travado/
+   somente-leitura nesse caso, ver atualizarCamposPorTipoControle). */
+function atualizarCustoReceitaNote(){
+  const note=document.getElementById('productReceitaCustoNote');
+  if(!note)return;
+  const custo=custoReceita(editingProductLoc,productReceita);
+  note.textContent=`Custo por unidade calculado: ${fmtMoney(custo)}`;
+  if(document.getElementById('productTipoControle').value==='produzido'){
+    document.getElementById('productValorUnitario').value=inputBRMoney(custo);
+  }
+}
+/* Mostra/esconde os grupos de campos que só fazem sentido pra cada Tipo de
+   controle: os campos de reposição (média de uso, prazos, margem, estoque-
+   alvo) só valem pra "estoque" (é o que alimenta a sugestão de compra); a
+   seção de Receita só aparece pra "produzido", que também trava o Valor
+   unitário (calculado da receita, não de uma nota fiscal) e esconde os
+   campos ligados à nota (Valor total na nota, Custos adicionais,
+   Quantidade que já entrou, Corrigir valor da nota) — produção desse tipo
+   de item é registrada à parte, em "Registrar produção". */
+function atualizarCamposPorTipoControle(){
+  const tipo=document.getElementById('productTipoControle').value||'estoque';
+  ['productMediaUsoField','productTempoEntregaProntoField','productTempoEntregaProducaoField','productMargemAtrasoField','productEstoqueAlvoField']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=tipo!=='estoque'});
+  const produzido=tipo==='produzido';
+  document.getElementById('productReceitaField').hidden=!produzido;
+  const vuField=document.getElementById('productValorUnitario'),vuNote=document.getElementById('productValorUnitarioNote');
+  const hasEntries=editingProductId?entriesForProduct(editingProductLoc,editingProductId).length>0:false;
+  if(produzido){
+    document.getElementById('productValorNotaField').hidden=true;
+    document.getElementById('productCustosField').hidden=true;
+    document.getElementById('productEntradaInicialField').hidden=true;
+    document.getElementById('productCorrigirValorNotaField').hidden=true;
+    document.getElementById('productCorrigirQtdField').hidden=true;
+    document.getElementById('productCorrigirBtnField').hidden=true;
+    document.getElementById('productSaveNextBtn').hidden=true;
+    vuField.disabled=true;
+    vuField.value=inputBRMoney(custoReceita(editingProductLoc,productReceita));
+    vuNote.textContent='Calculado automaticamente a partir da receita (ficha técnica).';
+    vuNote.hidden=false;
+    renderProductReceitaList();
+    atualizarCustoReceitaNote();
+  }else{
+    /* Restaura o comportamento normal (nota fiscal) — precisa disso pra
+       quando a pessoa troca o Tipo de controle DE "produzido" PRA outro
+       ainda dentro do mesmo diálogo aberto, já que aqui em cima a gente
+       tinha forçado tudo isso escondido/travado. Mesma regra de
+       openProductDialog (edição trava valor unitário se já tem
+       lançamento; produto novo mostra "Quantidade que já entrou"/"Valor
+       da nota"). */
+    document.getElementById('productValorNotaField').hidden=!!editingProductId;
+    document.getElementById('productCustosField').hidden=false;
+    document.getElementById('productEntradaInicialField').hidden=!!editingProductId;
+    document.getElementById('productCorrigirValorNotaField').hidden=!hasEntries;
+    document.getElementById('productCorrigirQtdField').hidden=!hasEntries;
+    document.getElementById('productCorrigirBtnField').hidden=!hasEntries;
+    document.getElementById('productSaveNextBtn').hidden=!!editingProductId;
+    vuField.disabled=hasEntries;
+    vuNote.textContent=hasEntries?'Valor da nota fiscal — travado depois do primeiro lançamento.':'Calculado automaticamente: valor da nota ÷ quantidade.';
+    vuNote.hidden=editingProductId?!hasEntries:false;
+  }
 }
 /* Select de fornecedor: lista do cadastro global + a opção "— Selecione —".
    Se o valor atual (dado antigo, digitado antes deste cadastro existir) não
@@ -4657,6 +4921,8 @@ function openProductDialog(id){
     document.getElementById('productCst').value=p.cst;
     document.getElementById('productNfe').value=p.nfeId;
     productCustosAdicionais=(p.custosAdicionais||[]).map(c=>({descricao:c.descricao||'',nfeId:c.nfeId||'',valor:Number(c.valor)||0}));
+    document.getElementById('productTipoControle').value=p.tipoControle||'estoque';
+    productReceita=(p.receita||[]).map(r=>({produtoId:r.produtoId||'',quantidade:Number(r.quantidade)||0}));
     statusSel.value=p.statusManual||'Sendo Utilizado';
     statusSel.disabled=p.estoque<=0;
     document.getElementById('productStatusNote').hidden=p.estoque>0;
@@ -4698,10 +4964,13 @@ function openProductDialog(id){
     document.getElementById('productEntradaInicialField').hidden=false;
     document.getElementById('productEntradaInicial').value='';
     productCustosAdicionais=[];
+    document.getElementById('productTipoControle').value='estoque';
+    productReceita=[];
   }
   renderProductCustosList();
   calcValorUnitarioProduto();
   atualizarEstoqueAlvoNota();
+  atualizarCamposPorTipoControle();
   document.getElementById('productDialog').showModal();
   document.getElementById('productNome').focus();
   document.getElementById('productNomePanel').hidden=true;
@@ -4724,7 +4993,9 @@ function buildProductFormData(){
     cst:document.getElementById('productCst').value.trim(),
     nfeId:document.getElementById('productNfe').value.trim(),
     status:document.getElementById('productStatus').value,
-    custosAdicionais:productCustosAdicionais.filter(c=>String(c.descricao||'').trim()).map(c=>({descricao:c.descricao.trim(),nfeId:(c.nfeId||'').trim(),valor:round2(Number(c.valor)||0)}))
+    custosAdicionais:productCustosAdicionais.filter(c=>String(c.descricao||'').trim()).map(c=>({descricao:c.descricao.trim(),nfeId:(c.nfeId||'').trim(),valor:round2(Number(c.valor)||0)})),
+    tipoControle:document.getElementById('productTipoControle').value,
+    receita:productReceita.filter(r=>r.produtoId&&Number(r.quantidade)>0).map(r=>({produtoId:r.produtoId,quantidade:round2(Number(r.quantidade)||0)}))
   };
 }
 /* Cria/atualiza o produto a partir do formulário — compartilhado entre
@@ -4805,10 +5076,64 @@ function resetProductFieldsForNext(){
 }
 async function confirmRemoveProduct(locId,id){
   const p=locState(locId).products[id];if(!p)return;
+  if(entriesForProduct(locId,id).length){toast('Não é possível remover: existem lançamentos vinculados a este produto. Remova-os primeiro.',true);return}
+  if(produtoEhInsumoEmUso(locId,id)){toast('Não é possível remover: este produto é usado como insumo na receita de um produto "Produzido". Remova-o da receita primeiro.',true);return}
   const ok=await confirmModern(`Remover o produto "${p.nome}"? Essa ação não pode ser desfeita.`,{title:'Remover produto',confirmText:'Remover'});
   if(!ok)return;
-  if(!removeProduct(locId,id)){toast('Não é possível remover: existem lançamentos vinculados a este produto. Remova-os primeiro.',true);return}
+  if(!removeProduct(locId,id)){toast('Não é possível remover este produto.',true);return}
   saveState();renderAll();toast('Produto removido.');
+}
+
+/* ── Diálogo: registrar produção (produtos tipoControle="produzido") ──
+   Abre a partir do botão na tabela do Cadastro. Mostra ao vivo, enquanto
+   a quantidade é digitada, o que vai ser consumido de cada insumo da
+   receita e se algum ficaria negativo — bloqueia o botão de salvar nesse
+   caso, mesma UX otimista do resto do app. Confirmar chama
+   registrarProducao, que faz toda a validação "de verdade" de novo antes
+   de aplicar (a checagem aqui é só preview). */
+let productionProdutoId=null;
+function openProductionDialog(id){
+  const product=locState(activeLocation).products[id];if(!product)return;
+  productionProdutoId=id;
+  document.getElementById('productionForm').reset();
+  hideAlert('productionAlert');
+  document.getElementById('productionDialogTitle').textContent=`Registrar produção — "${product.nome}"`;
+  document.getElementById('productionData').value=todayIso();
+  document.getElementById('productionQuantidade').value='';
+  atualizarPreviewProducao();
+  document.getElementById('productionDialog').showModal();
+  document.getElementById('productionQuantidade').focus();
+}
+function atualizarPreviewProducao(){
+  const wrap=document.getElementById('productionPreview');
+  const saveBtn=document.getElementById('productionSave');
+  const product=locState(activeLocation).products[productionProdutoId];
+  if(!product){wrap.innerHTML='';return}
+  const receita=product.receita||[];
+  const quantidade=numBR(document.getElementById('productionQuantidade').value);
+  const custoUnitario=custoReceita(activeLocation,receita);
+  const linhas=receita.map(item=>{
+    const insumo=locState(activeLocation).products[item.produtoId];
+    const necessario=round2((Number(item.quantidade)||0)*quantidade);
+    const disponivel=insumo?Number(insumo.estoque)||0:0;
+    const falta=quantidade>0&&necessario>disponivel;
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)${falta?';color:var(--critical);font-weight:700':''}">
+      <span>${esc(insumo?insumo.nome:'(produto removido)')}</span>
+      <span>consome ${fmtNum(necessario)}${insumo&&insumo.tipo?' '+esc(insumo.tipo):''} — tem ${fmtNum(disponivel)}${falta?' ⚠':''}</span>
+    </div>`;
+  }).join('');
+  const temFalta=quantidade>0&&receitaFaltando(activeLocation,receita,quantidade).length>0;
+  saveBtn.disabled=!receita.length||quantidade<=0||temFalta;
+  wrap.innerHTML=`${linhas||'<p class="combo-empty">Este produto não tem receita cadastrada — edite a ficha e adicione insumos primeiro.</p>'}
+    <p class="field-help" style="margin-top:10px">Custo por unidade calculado: <strong>${fmtMoney(custoUnitario)}</strong>${quantidade>0?` — total desta produção: <strong>${fmtMoney(round2(custoUnitario*quantidade))}</strong>`:''}</p>`;
+}
+function saveProductionForm(){
+  try{
+    registrarProducao(activeLocation,productionProdutoId,{quantidade:document.getElementById('productionQuantidade').value,data:document.getElementById('productionData').value});
+  }catch(err){showAlert('productionAlert',err.message);return}
+  saveState();renderAll();
+  document.getElementById('productionDialog').close();
+  toast('Produção registrada.');
 }
 
 /* ── Diálogo: lançamento ─────────────────────────────────────────── */
@@ -4819,6 +5144,8 @@ function openEntryDialog(id,presetProdutoId){
   document.getElementById('entryValorUnitario').disabled=false;
   document.getElementById('entryValorUnitarioNote').hidden=true;
   document.getElementById('entryEstoqueDisponivel').textContent='';
+  document.getElementById('entryEntrada').disabled=false;
+  document.getElementById('entryEntradaProduzidoNote').hidden=true;
   editingEntryId=id||null;editingEntryLoc=activeLocation;
   document.getElementById('entryDialogTitle').textContent=id?'Editar lançamento':'Novo lançamento';
   const prods=productsOf(activeLocation).slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
@@ -4894,6 +5221,22 @@ function atualizarEstoqueDisponivelEntry(){
   if(!el)return;
   const id=document.getElementById('entryProduto').value;
   const p=locState(activeLocation).products[id];
+  const entradaField=document.getElementById('entryEntrada');
+  const entradaNote=document.getElementById('entryEntradaProduzidoNote');
+  /* Produto "produzido" não recebe Entrada NOVA por aqui — produção é
+     registrada à parte (baixa os insumos da receita sozinha, ver
+     registrarProducao), senão daria pra criar estoque do produzido "do
+     nada", sem consumir nenhum insumo. Só bloqueia ao CRIAR um lançamento
+     (editingEntryId vazio) — editar uma entrada já existente (ex.: corrigir
+     a data de uma produção já lançada) continua permitido, igual a
+     qualquer outro lançamento. Saída continua sempre normal (vender/usar
+     um produzido já em estoque não mexe em receita nenhuma). */
+  const eProduzido=!editingEntryId&&p&&p.tipoControle==='produzido';
+  if(entradaField){
+    entradaField.disabled=!!eProduzido;
+    if(eProduzido)entradaField.value='';
+  }
+  if(entradaNote)entradaNote.hidden=!eProduzido;
   if(!p){el.textContent='';return}
   const estoqueAtual=Number(p.estoque)||0;
   const unidade=p.tipo?' '+esc(p.tipo):'';
@@ -4911,6 +5254,11 @@ function atualizarEstoqueDisponivelEntry(){
 function saveEntryForm(){
   const produtoId=document.getElementById('entryProduto').value;
   if(!produtoId){showAlert('entryAlert','Selecione um produto (cadastre um produto antes, se a lista estiver vazia).');return}
+  const produtoSelecionado=locState(editingEntryLoc).products[produtoId];
+  if(!editingEntryId&&produtoSelecionado&&produtoSelecionado.tipoControle==='produzido'&&numBR(document.getElementById('entryEntrada').value)>0){
+    showAlert('entryAlert','Este produto é "Produzido" — use "Registrar produção" na ficha dele pra dar entrada.');
+    return;
+  }
   const data={
     data:document.getElementById('entryData').value||todayIso(),produtoId,
     dataFaturamento:document.getElementById('entryDataFaturamento').value,
@@ -4970,9 +5318,22 @@ function renderBulkSaidaList(){
   wrap.innerHTML=bulkSaidaRows.map((r,i)=>`
     <div class="bulk-saida-row">
       <div class="bulk-saida-info"><strong>${esc(r.nome)}</strong><span>${r.nfeId?('NFE '+esc(r.nfeId)+' · '):''}Estoque disponível: ${fmtNum(r.estoque)}${r.tipo?' '+esc(r.tipo):''}</span></div>
+      <div class="bulk-saida-classe"><input type="text" id="bulkSaidaClasseInput${i}" class="combo-input bulk-saida-classe-input" data-idx="${i}" autocomplete="off" maxlength="60" placeholder="Classe (onde foi usado)" value="${esc(r.classe||'')}"><div class="combo-panel" id="bulkSaidaClassePanel${i}" hidden></div></div>
       <div class="bulk-saida-qtd"><input type="text" inputmode="decimal" autocomplete="off" placeholder="Qtd. saída" class="bulk-saida-qtd-input" data-idx="${i}" value="${r.qtd?inputBR(r.qtd):''}"></div>
       <button type="button" class="mini-remove" data-remove-bulk="${i}" title="Remover">${ICON_TRASH}</button>
     </div>`).join('');
+  /* Classe de cada linha usa o mesmo combo-panel "moderno" dos outros
+     campos de classe do app (em vez do <datalist> nativo do navegador,
+     que renderiza um dropdown preto fora do controle do CSS) — cada linha
+     tem seu próprio input+painel (ids únicos por índice) porque a lista é
+     recriada inteira a cada add/remove. wireCombo cuida do clique/teclado
+     na sugestão; o addEventListener abaixo sincroniza a digitação livre
+     (sem escolher sugestão) pro array, sem conflitar com o oninput que o
+     wireCombo já usa internamente pra filtrar o painel. */
+  bulkSaidaRows.forEach((r,i)=>{
+    wireCombo('bulkSaidaClasseInput'+i,'bulkSaidaClassePanel'+i,()=>classesUsed(activeLocation),val=>{bulkSaidaRows[i].classe=val});
+    document.getElementById('bulkSaidaClasseInput'+i).addEventListener('input',ev=>{bulkSaidaRows[i].classe=ev.target.value});
+  });
   wrap.querySelectorAll('.bulk-saida-qtd-input').forEach(inp=>{
     inp.oninput=()=>{brNumLiveInput(inp);bulkSaidaRows[Number(inp.dataset.idx)].qtd=numBR(inp.value)};
   });
@@ -4983,7 +5344,7 @@ function renderBulkSaidaList(){
 }
 function addBulkSaidaRow(ficha){
   if(bulkSaidaRows.some(r=>r.produtoId===ficha.id))return;
-  bulkSaidaRows.push({produtoId:ficha.id,nome:ficha.nome,nfeId:ficha.nfeId,tipo:ficha.tipo,estoque:Number(ficha.estoque)||0,valorUnitario:Number(ficha.valorUnitario)||0,qtd:0});
+  bulkSaidaRows.push({produtoId:ficha.id,nome:ficha.nome,nfeId:ficha.nfeId,tipo:ficha.tipo,estoque:Number(ficha.estoque)||0,valorUnitario:Number(ficha.valorUnitario)||0,classe:'',qtd:0});
   renderBulkSaidaList();
 }
 function wireBulkSaidaProdutoSelect(){
@@ -5024,7 +5385,6 @@ function saveBulkSaidaForm(){
   const data=document.getElementById('bulkSaidaData').value||todayIso();
   const destino=document.getElementById('bulkSaidaDestino').value.trim();
   if(!destino){showAlert('bulkSaidaAlert','Informe o destino desta saída em lote.');return}
-  const classe=document.getElementById('bulkSaidaClasse').value.trim();
   const ciclo=document.getElementById('bulkSaidaCiclo').value.trim();
   const validRows=bulkSaidaRows.filter(r=>r.qtd>0);
   if(!validRows.length){showAlert('bulkSaidaAlert','Adicione ao menos um produto e informe a quantidade de saída dele.');return}
@@ -5039,7 +5399,7 @@ function saveBulkSaidaForm(){
   }
   try{
     validRows.forEach(r=>{
-      addEntry(activeLocation,{data,destino,saida:r.qtd,produtoId:r.produtoId,valorUnitario:r.valorUnitario,classe,ciclo});
+      addEntry(activeLocation,{data,destino,saida:r.qtd,produtoId:r.produtoId,valorUnitario:r.valorUnitario,classe:(r.classe||'').trim(),ciclo});
     });
   }catch(err){showAlert('bulkSaidaAlert',err.message);saveState();renderAll();return}
   saveState();renderAll();
@@ -5478,7 +5838,10 @@ document.getElementById('addProductBtn').onclick=()=>openProductDialog();
 document.getElementById('productSaveNextBtn').onclick=()=>saveProductFormAndNext();
 document.getElementById('productCorrigirValorBtn').onclick=()=>corrigirValorUnitarioProduto();
 document.getElementById('productAddCustoBtn').onclick=()=>addCustoRow();
-document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:'',nome:null};document.getElementById('cadastroSearch').value='';renderCadastro()};
+document.getElementById('productTipoControle').onchange=()=>atualizarCamposPorTipoControle();
+document.getElementById('productAddReceitaBtn').onclick=()=>addReceitaRow();
+document.getElementById('cadastroClearFiltersBtn').onclick=()=>{cadastroFilters={search:'',classe:null,status:null,nomeExato:'',nome:null,tipoControle:'estoque'};document.getElementById('cadastroSearch').value='';renderCadastro()};
+document.getElementById('cadastroFilterTipoControle').onchange=e=>{cadastroFilters.tipoControle=e.target.value;renderCadastro()};
 document.getElementById('cadastroAgruparNome').onchange=e=>{cadastroGroupByName=e.target.checked;if(cadastroGroupByName)cadastroFilters.nomeExato='';renderCadastro()};
 document.getElementById('cadastroMostrarFiscal').onchange=e=>{cadastroMostrarFiscal=e.target.checked;renderCadastro()};
 document.getElementById('lancSearch').oninput=e=>{lancFilters.search=e.target.value;lancPage=0;renderLancamentos()};
@@ -5504,6 +5867,7 @@ document.getElementById('fornecedoresClearFiltersBtn').onclick=()=>{
 };
 
 document.getElementById('productForm').onsubmit=e=>{e.preventDefault();saveProductForm()};
+document.getElementById('productionForm').onsubmit=e=>{e.preventDefault();saveProductionForm()};
 document.getElementById('entryForm').onsubmit=e=>{e.preventDefault();saveEntryForm()};
 document.getElementById('bulkSaidaForm').onsubmit=e=>{e.preventDefault();saveBulkSaidaForm()};
 document.getElementById('renomearDestinoForm').onsubmit=e=>{e.preventDefault();saveRenomearDestinoForm()};
@@ -5540,7 +5904,6 @@ wireCombo('entryClasse','entryClassePanel',()=>classesUsed(activeLocation));
 wireCombo('entryDestino','entryDestinoPanel',()=>destinosUsed(activeLocation));
 wireCombo('entryCiclo','entryCicloPanel',()=>ciclosUsed(activeLocation));
 wireCombo('bulkSaidaDestino','bulkSaidaDestinoPanel',()=>destinosUsed(activeLocation));
-wireCombo('bulkSaidaClasse','bulkSaidaClassePanel',()=>classesUsed(activeLocation));
 wireCombo('bulkSaidaCiclo','bulkSaidaCicloPanel',()=>ciclosUsed(activeLocation));
 wireBulkSaidaProdutoSelect();
 wireSearchSelect('productFornecedor');
