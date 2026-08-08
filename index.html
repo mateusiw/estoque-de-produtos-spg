@@ -4678,7 +4678,7 @@ function buildRelatorioHtml(locId){
     rowsEstoque=list.map(g=>`<tr><td>${esc(g.nome)}</td><td class="num">${fmtNum(g.lotes)}</td><td>${esc(labelDeSet(g.classes))}</td><td>${esc(labelDeSet(g.fornecedores))}</td><td>${esc(labelDeSet(g.tipos))}</td><td class="num">${fmtNum(g.estoque)}</td><td class="num">${fmtMoney(g.valorTotal)}</td></tr>`).join('')
       ||'<tr><td colspan="7">Nenhum produto cadastrado.</td></tr>';
   }else{
-    const list=products.slice().sort((a,b)=>(a.classe||'').localeCompare(b.classe||'','pt-BR')||a.nome.localeCompare(b.nome,'pt-BR'));
+    const list=products.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
     totalItensEstoque=list.length;
     estoqueHead='<tr><th>Produto</th><th>Classe</th><th>Fornecedor</th><th>Tipo</th><th class="num">Estoque</th><th class="num">Valor Unit.</th><th class="num">Valor Total</th></tr>';
     rowsEstoque=list.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.classe)}</td><td>${esc(p.fornecedor)}</td><td>${esc(p.tipo)}</td><td class="num">${fmtNum(p.estoque)}</td><td class="num">${fmtMoney(p.valorUnitario)}</td><td class="num">${fmtMoney(p.valorTotal)}</td></tr>`).join('')
@@ -4695,13 +4695,16 @@ function buildRelatorioHtml(locId){
       g.total+=Number(e.saida)||0;g.valor+=Number(e.valorTotal)||0;g.lancs++;
       if(e.destino)g.destinos.add(e.destino);
     });
-    const listS=Object.values(gruposS).sort((a,b)=>b.total-a.total);
+    const listS=Object.values(gruposS).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
     const colsS=relatorioMostrarDestino?7:6;
     saidaHead=`<tr><th>Produto</th><th>Classe</th><th>Tipo</th><th class="num">Saída total</th><th class="num">Valor (R$)</th><th class="num">Lançamentos</th>${relatorioMostrarDestino?'<th>Destino(s)</th>':''}</tr>`;
     rowsSaida=listS.map(g=>`<tr><td>${esc(g.nome)}</td><td>${esc(g.classe)}</td><td>${esc(g.tipo)}</td><td class="num">${fmtNum(g.total)}</td><td class="num">${fmtMoney(g.valor)}</td><td class="num">${fmtNum(g.lancs)}</td>${relatorioMostrarDestino?`<td>${esc(labelDeSet(g.destinos))}</td>`:''}</tr>`).join('')
       ||`<tr><td colspan="${colsS}">Nenhuma saída registrada no período.</td></tr>`;
   }else{
-    const listS=saidas.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+    const listS=saidas.slice().sort((a,b)=>{
+      const pa=locState(locId).products[a.produtoId],pb=locState(locId).products[b.produtoId];
+      return (pa?pa.nome:'').localeCompare(pb?pb.nome:'','pt-BR')||String(b.data).localeCompare(String(a.data));
+    });
     const colsS=relatorioMostrarDestino?7:6;
     saidaHead=`<tr><th>Data</th><th>Produto</th><th>Classe</th><th>Tipo</th><th class="num">Saída</th><th class="num">Valor (R$)</th>${relatorioMostrarDestino?'<th>Destino</th>':''}</tr>`;
     rowsSaida=listS.map(e=>{const p=locState(locId).products[e.produtoId];return `<tr><td>${fmtDate(e.data)}</td><td>${esc(p?p.nome:'(produto removido)')}</td><td>${esc(p?p.classe:'')}</td><td>${esc(p?p.tipo:'')}</td><td class="num">${fmtNum(e.saida)}</td><td class="num">${fmtMoney(e.valorTotal)}</td>${relatorioMostrarDestino?`<td>${esc(e.destino)}</td>`:''}</tr>`}).join('')
@@ -4718,13 +4721,16 @@ function buildRelatorioHtml(locId){
       g.total+=Number(e.entrada)||0;g.valor+=Number(e.valorTotal)||0;g.lancs++;
       if(e.fornecedor)g.fornecedores.add(e.fornecedor);
     });
-    const listE=Object.values(gruposE).sort((a,b)=>b.total-a.total);
+    const listE=Object.values(gruposE).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
     const colsE=relatorioMostrarDestino?7:6;
     entradaHead=`<tr><th>Produto</th><th>Classe</th><th>Tipo</th><th class="num">Entrada total</th><th class="num">Valor (R$)</th><th class="num">Lançamentos</th>${relatorioMostrarDestino?'<th>Fornecedor(es)</th>':''}</tr>`;
     rowsEntrada=listE.map(g=>`<tr><td>${esc(g.nome)}</td><td>${esc(g.classe)}</td><td>${esc(g.tipo)}</td><td class="num">${fmtNum(g.total)}</td><td class="num">${fmtMoney(g.valor)}</td><td class="num">${fmtNum(g.lancs)}</td>${relatorioMostrarDestino?`<td>${esc(labelDeSet(g.fornecedores))}</td>`:''}</tr>`).join('')
       ||`<tr><td colspan="${colsE}">Nenhuma entrada registrada no período.</td></tr>`;
   }else{
-    const listE=entradas.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+    const listE=entradas.slice().sort((a,b)=>{
+      const pa=locState(locId).products[a.produtoId],pb=locState(locId).products[b.produtoId];
+      return (pa?pa.nome:'').localeCompare(pb?pb.nome:'','pt-BR')||String(b.data).localeCompare(String(a.data));
+    });
     const colsE=relatorioMostrarDestino?7:6;
     entradaHead=`<tr><th>Data</th><th>Produto</th><th>Classe</th><th>Tipo</th><th class="num">Entrada</th><th class="num">Valor (R$)</th>${relatorioMostrarDestino?'<th>Fornecedor</th>':''}</tr>`;
     rowsEntrada=listE.map(e=>{const p=locState(locId).products[e.produtoId];return `<tr><td>${fmtDate(e.data)}</td><td>${esc(p?p.nome:'(produto removido)')}</td><td>${esc(p?p.classe:'')}</td><td>${esc(p?p.tipo:'')}</td><td class="num">${fmtNum(e.entrada)}</td><td class="num">${fmtMoney(e.valorTotal)}</td>${relatorioMostrarDestino?`<td title="${esc(e.fornecedor)}">${esc(fornecedorExibicao(e.fornecedor))}</td>`:''}</tr>`}).join('')
