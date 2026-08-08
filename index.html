@@ -824,7 +824,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
    produto é qual. Cor fixa (não usa as variáveis de tema): .print-doc
    é sempre branco/preto de propósito, pensado pra imprimir em papel,
    então não deve escurecer junto com o tema escuro do app. */
-.print-doc tbody tr:nth-child(even){background:#f7f7f7}
+.print-doc tbody tr:nth-child(even){background:#edf0f3}
 .print-doc td.num,.print-doc th.num{text-align:right;font-variant-numeric:tabular-nums}
 .print-doc tr.po-summary-total td{border-top:2px solid #333!important;font-weight:700;font-size:13px;padding-top:7px}
 /* Larguras fixas nas colunas da tabela de itens da Solicitação de Compra
@@ -846,8 +846,18 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 @media print{
   body>*:not(#printArea){display:none!important}
   #printArea{display:block!important}
+  /* Sem isso, o Chrome/Edge só imprime cor de fundo (zebrado das linhas,
+     fundo do cabeçalho, caixas de resumo) se a pessoa marcar manualmente
+     "Gráficos em segundo plano" no diálogo de impressão — com a opção
+     desmarcada (padrão do navegador), tudo sai branco. Isso força o
+     navegador a imprimir essas cores sempre, do jeito que aparecem aqui. */
+  #printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-doc{padding:0;border-radius:0}
-  @page{size:A4;margin:10mm}
+  /* 15mm (não 10mm): com a tabela colada bem na margem, a borda direita/
+     inferior da última coluna/linha às vezes saía cortada na hora de
+     gerar o PDF (arredondamento do motor de impressão do navegador perto
+     da borda da página) — essa folga extra evita o corte. */
+  @page{size:A4;margin:15mm}
   /* Cabeçalho mais enxuto na impressão, pra sobrar mais altura de página
      pro conteúdo — na tela ele continua no tamanho normal. */
   .print-head{margin-bottom:6px}
@@ -861,15 +871,20 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
      escolhido em runtime (classe tbl-compact-N) conforme o nº de linhas,
      pra caber inteira numa folha só mesmo com bastante item cadastrado. */
   .print-section-estoque{page-break-after:always}
-  .print-doc table.tbl-compact-1{font-size:11px}
+  /* Modo "página única" (relatório): classe ligada via JS em imprimirRelatorio,
+     junto com um <style> injetado que redimensiona @page pra caber todo o
+     conteúdo medido — sem essa quebra forçada, as seções fluem contínuas
+     numa página só em vez de uma folha A4 por seção. */
+  #printArea.pagina-unica .print-section-estoque{page-break-after:auto}
+  .print-doc table.tbl-compact-1{font-size:12px}
   .print-doc table.tbl-compact-1 th,.print-doc table.tbl-compact-1 td{padding:5px 7px}
-  .print-doc table.tbl-compact-2{font-size:9.5px}
+  .print-doc table.tbl-compact-2{font-size:10.5px}
   .print-doc table.tbl-compact-2 th,.print-doc table.tbl-compact-2 td{padding:4px 6px}
-  .print-doc table.tbl-compact-3{font-size:8.5px}
+  .print-doc table.tbl-compact-3{font-size:9.5px}
   .print-doc table.tbl-compact-3 th,.print-doc table.tbl-compact-3 td{padding:3px 5px}
-  .print-doc table.tbl-compact-4{font-size:7.5px}
+  .print-doc table.tbl-compact-4{font-size:8.5px}
   .print-doc table.tbl-compact-4 th,.print-doc table.tbl-compact-4 td{padding:2.5px 4px}
-  .print-doc table.tbl-compact-5{font-size:6.5px}
+  .print-doc table.tbl-compact-5{font-size:7.5px}
   .print-doc table.tbl-compact-5 th,.print-doc table.tbl-compact-5 td{padding:2px 3px;line-height:1.1}
 }
 </style>
@@ -1411,6 +1426,16 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
   <div class="dialog-foot">
     <button type="button" class="btn" onclick="document.getElementById('confirmDialog').returnValue='';document.getElementById('confirmDialog').close()">Cancelar</button>
     <button type="button" class="btn btn-danger" id="confirmOkBtn" onclick="document.getElementById('confirmDialog').returnValue='confirm';document.getElementById('confirmDialog').close()">Remover</button>
+  </div>
+</dialog>
+
+<dialog id="relatorioImprimirDialog">
+  <div class="dialog-head"><div><h3>Como gerar o relatório?</h3></div><button type="button" class="dialog-close" onclick="document.getElementById('relatorioImprimirDialog').close()" aria-label="Fechar">×</button></div>
+  <div class="dialog-body"><p style="margin:0;color:var(--ink-2);line-height:1.5">Escolha entre imprimir em folhas A4 (com quebra de página entre as seções) ou gerar tudo numa página única contínua, sem quebras.</p></div>
+  <div class="dialog-foot" style="flex-wrap:wrap">
+    <button type="button" class="btn" onclick="document.getElementById('relatorioImprimirDialog').close()">Cancelar</button>
+    <button type="button" class="btn" id="relatorioImprimirA4Btn"><span>Folhas A4 (com quebras)</span></button>
+    <button type="button" class="btn btn-primary" id="relatorioImprimirUnicaBtn"><span>Página única (sem quebras)</span></button>
   </div>
 </dialog>
 
@@ -4526,22 +4551,14 @@ function imprimirSolicitacaoCompra(fretes){
 }
 
 /* ── Relatório A4 (estoque atual + saídas do período escolhido) ──────── */
-let relatorioGroupByName=false;
+let relatorioGroupByName=true;
 let relatorioPeriodo='semana';
 let relatorioFiltroStatus=new Set(['Sendo Utilizado']);
 let relatorioFiltroClasse=null;
 let relatorioFiltroNome=null;
-let relatorioMostrarDestino=true;
-let relatorioSecao='ambos';
-const RELATORIO_SECAO_OPTIONS=[
-  {value:'ambos',label:'Estoque + Entradas + Saídas'},
-  {value:'estoque',label:'Somente estoque'},
-  {value:'entrada',label:'Somente entradas'},
-  {value:'saida',label:'Somente saídas'}
-];
-function relatorioSecaoOptionsHtml(){
-  return RELATORIO_SECAO_OPTIONS.map(o=>`<option value="${o.value}"${relatorioSecao===o.value?' selected':''}>${o.label}</option>`).join('');
-}
+let relatorioMostrarDestino=false;
+let relatorioFiltroSecao=null;
+const RELATORIO_SECAO_OPTIONS=['Estoque','Entradas','Saídas'];
 const RELATORIO_PERIODO_OPTIONS=[
   {value:'semana',label:'Esta semana'},
   {value:'7',label:'Últimos 7 dias'},
@@ -4601,10 +4618,10 @@ function labelDeSet(set){
    nº de linhas, pra ela caber inteira numa folha A4 só mesmo com bastante
    produto cadastrado — ver classes tbl-compact-N no CSS de @media print. */
 function classeCompactaEstoque(totalLinhas){
-  if(totalLinhas<=50)return'tbl-compact-1';
-  if(totalLinhas<=70)return'tbl-compact-2';
-  if(totalLinhas<=95)return'tbl-compact-3';
-  if(totalLinhas<=130)return'tbl-compact-4';
+  if(totalLinhas<=45)return'tbl-compact-1';
+  if(totalLinhas<=63)return'tbl-compact-2';
+  if(totalLinhas<=85)return'tbl-compact-3';
+  if(totalLinhas<=115)return'tbl-compact-4';
   return'tbl-compact-5';
 }
 /* Produtos do local já com o filtro de Status do Relatório aplicado —
@@ -4733,14 +4750,14 @@ function buildRelatorioHtml(locId){
       <table><thead><tr><th>Insumo</th><th class="num">Qtd./unidade</th><th class="num">Valor unit. insumo</th><th class="num">Subtotal</th></tr></thead><tbody>${linhasReceita}</tbody></table>`;
   }).join('');
 
-  const mostrarEstoque=relatorioSecao==='ambos'||relatorioSecao==='estoque';
-  const mostrarEntrada=relatorioSecao==='ambos'||relatorioSecao==='entrada';
-  const mostrarSaida=relatorioSecao==='ambos'||relatorioSecao==='saida';
-  const TITULOS_SECAO={estoque:'Relatório de Estoque',entrada:'Relatório de Entradas',saida:'Relatório de Saídas',ambos:'Relatório de Estoque, Entradas e Saídas'};
-  const tituloSecao=TITULOS_SECAO[relatorioSecao]||TITULOS_SECAO.ambos;
+  const mostrarEstoque=!relatorioFiltroSecao||relatorioFiltroSecao.has('Estoque');
+  const mostrarEntrada=!relatorioFiltroSecao||relatorioFiltroSecao.has('Entradas');
+  const mostrarSaida=!relatorioFiltroSecao||relatorioFiltroSecao.has('Saídas');
+  const partesSecao=[mostrarEstoque&&'Estoque',mostrarEntrada&&'Entradas',mostrarSaida&&'Saídas'].filter(Boolean);
+  const tituloSecao=partesSecao.length?`Relatório de ${partesSecao.join(', ').replace(/, ([^,]*)$/,' e $1')}`:'Relatório (nenhum conteúdo selecionado)';
   const metaMovimento=(mostrarEntrada||mostrarSaida)?` · Movimentações: ${esc(relatorioPeriodoLabel())} (${fmtDate(start)} a ${fmtDate(end)})`:'';
   const estoqueSecaoHtml=mostrarEstoque?`<div class="print-section-estoque">
-      <h2>Estoque atual (${fmtNum(totalItensEstoque)} ${agrupar?'produto(s) distinto(s)':'item(ns)'} · ${fmtMoney(valorTotalGeral)})${relatorioFiltroStatus?` — status: ${esc([...relatorioFiltroStatus].join(', ')||'nenhum selecionado')}`:''}${relatorioFiltroClasse?` — classe: ${esc([...relatorioFiltroClasse].join(', ')||'nenhuma selecionada')}`:''}</h2>
+      <h2>Estoque atual${relatorioFiltroStatus?` — status: ${esc([...relatorioFiltroStatus].join(', ')||'nenhum selecionado')}`:''}${relatorioFiltroClasse?` — classe: ${esc([...relatorioFiltroClasse].join(', ')||'nenhuma selecionada')}`:''}</h2>
       <div class="print-summary">
         <div><span>Produtos no estoque</span><strong>${fmtNum(products.length)}</strong></div>
         <div><span>Valor total em estoque</span><strong>${fmtMoney(valorTotalGeral)}</strong></div>
@@ -4785,7 +4802,7 @@ function renderRelatorio(){
     <div class="table-toolbar">
       <label class="toolbar-check" title="Junta todas as fichas/lançamentos com o mesmo nome de produto, somando estoque, entradas e saídas."><input type="checkbox" id="relatorioAgruparNome"${relatorioGroupByName?' checked':''}> Agrupar por nome</label>
       <label class="toolbar-check" title="Mostra ou esconde a coluna de destino (saídas) / fornecedor (entradas) nas tabelas de movimentação."><input type="checkbox" id="relatorioMostrarDestino"${relatorioMostrarDestino?' checked':''}> Mostrar destino/fornecedor</label>
-      <div class="filter-field" style="min-width:170px"><label for="relatorioSecao">Conteúdo do relatório</label><select id="relatorioSecao">${relatorioSecaoOptionsHtml()}</select></div>
+      <div class="filter-field" style="min-width:170px"><label>Conteúdo do relatório</label><div id="relatorioFilterSecaoMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Produto</label><div id="relatorioFilterNomeMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Classe</label><div id="relatorioFilterClasseMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Status (estoque)</label><div id="relatorioFilterStatusMount"></div></div>
@@ -4796,7 +4813,8 @@ function renderRelatorio(){
     ${buildRelatorioHtml(locId)}`;
   document.getElementById('relatorioAgruparNome').onchange=e=>{relatorioGroupByName=e.target.checked;renderRelatorio()};
   document.getElementById('relatorioMostrarDestino').onchange=e=>{relatorioMostrarDestino=e.target.checked;renderRelatorio()};
-  document.getElementById('relatorioSecao').onchange=e=>{relatorioSecao=e.target.value;renderRelatorio()};
+  document.getElementById('relatorioFilterSecaoMount').innerHTML=multiselectHtml('relatorioFilterSecao','Estoque + Entradas + Saídas',RELATORIO_SECAO_OPTIONS,relatorioFiltroSecao);
+  wireMultiselect('relatorioFilterSecao',RELATORIO_SECAO_OPTIONS,()=>relatorioFiltroSecao,v=>relatorioFiltroSecao=v,renderRelatorio);
   document.getElementById('relatorioFilterNomeMount').innerHTML=multiselectHtml('relatorioFilterNome','Todos os produtos',nomeOptions,relatorioFiltroNome);
   wireMultiselect('relatorioFilterNome',nomeOptions,()=>relatorioFiltroNome,v=>relatorioFiltroNome=v,renderRelatorio);
   document.getElementById('relatorioFilterClasseMount').innerHTML=multiselectHtml('relatorioFilterClasse','Todas as classes',classeOptions,relatorioFiltroClasse);
@@ -4804,11 +4822,53 @@ function renderRelatorio(){
   document.getElementById('relatorioFilterStatusMount').innerHTML=multiselectHtml('relatorioFilterStatus','Todos os status',STATUS_ALL,relatorioFiltroStatus);
   wireMultiselect('relatorioFilterStatus',STATUS_ALL,()=>relatorioFiltroStatus,v=>relatorioFiltroStatus=v,renderRelatorio);
   document.getElementById('relatorioPeriodo').onchange=e=>{relatorioPeriodo=e.target.value;renderRelatorio()};
-  document.getElementById('relatorioImprimirBtn').onclick=()=>{
-    document.getElementById('printArea').innerHTML=buildRelatorioHtml(activeLocation);
-    window.print();
-  };
+  document.getElementById('relatorioImprimirBtn').onclick=()=>document.getElementById('relatorioImprimirDialog').showModal();
+  document.getElementById('relatorioImprimirA4Btn').onclick=()=>imprimirRelatorio(false);
+  document.getElementById('relatorioImprimirUnicaBtn').onclick=()=>imprimirRelatorio(true);
   document.getElementById('relatorioAbrirTelaBtn').onclick=()=>abrirRelatorioParaTela(locId);
+}
+/* Mede a altura real do conteúdo do relatório (fora da tela, sem alterar o
+   layout visível) e injeta um @page do tamanho exato dessa altura — assim
+   o navegador gera uma única página contínua em vez de paginar em folhas
+   A4, além de soltar a quebra forçada entre Estoque/Entradas/Saídas (ver
+   regra #printArea.pagina-unica no @media print). A medição roda com o CSS
+   de tela (fontes maiores que as classes compactas do @media print), então
+   a altura calculada tende a sobrar um pouco — preferível a faltar e a
+   página única virar duas por um cálculo justo demais. */
+/* Nome sugerido pro PDF quando o usuário escolhe "Salvar como PDF" no
+   diálogo de impressão do navegador — ele usa o title da aba como nome de
+   arquivo padrão, por isso trocamos o title antes de window.print() (e
+   devolvemos ao normal depois, no afterprint) em vez de deixar o título
+   genérico da aba ("Estoque de Produtos SPG"). */
+function nomeArquivoRelatorio(locId){
+  const hoje=new Date();
+  const data=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-${String(hoje.getDate()).padStart(2,'0')}`;
+  const loc=locLabel(locId).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return `Relatorio-${loc}-${data}`;
+}
+function imprimirRelatorio(paginaUnica){
+  document.getElementById('relatorioImprimirDialog').close();
+  const area=document.getElementById('printArea');
+  area.innerHTML=buildRelatorioHtml(activeLocation);
+  area.classList.toggle('pagina-unica',paginaUnica);
+  let styleTag=document.getElementById('relatorioPaginaUnicaStyle');
+  if(paginaUnica){
+    area.style.cssText='display:block;visibility:hidden;position:fixed;left:-99999px;top:0;width:180mm';
+    const alturaMm=Math.ceil(area.scrollHeight*25.4/96)+40;
+    area.style.cssText='';
+    if(!styleTag){styleTag=document.createElement('style');styleTag.id='relatorioPaginaUnicaStyle';document.head.appendChild(styleTag)}
+    styleTag.textContent=`@media print{@page{size:210mm ${alturaMm}mm;margin:15mm}}`;
+  }else if(styleTag){
+    styleTag.textContent='';
+  }
+  const tituloOriginal=document.title;
+  document.title=nomeArquivoRelatorio(activeLocation);
+  window.print();
+  window.addEventListener('afterprint',()=>{
+    document.title=tituloOriginal;
+    area.classList.remove('pagina-unica');
+    if(styleTag)styleTag.textContent='';
+  },{once:true});
 }
 /* "Abrir pra leitura na tela": mesmo conteúdo do relatório (buildRelatorioHtml),
    mas numa aba própria com CSS independente do @media print — sem o
@@ -4849,8 +4909,9 @@ function abrirRelatorioParaTela(locId){
     .print-doc table{width:100%;border-collapse:collapse;font-size:13.5px;margin:0 0 16px}
     .print-doc th,.print-doc td{border:1px solid #ccc;padding:8px 10px;text-align:left}
     .print-doc th{background:#f0f0f0}
-    .print-doc tbody tr:nth-child(even){background:#f7f7f7}
+    .print-doc tbody tr:nth-child(even){background:#edf0f3}
     .print-doc td.num,.print-doc th.num{text-align:right;font-variant-numeric:tabular-nums}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   `;
   doc.head.appendChild(style);
   doc.body.innerHTML=buildRelatorioHtml(locId);
