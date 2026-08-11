@@ -1019,6 +1019,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
       </select></div>
       <div class="filter-field"><label>Destino</label><div id="lancFilterDestinoMount"></div></div>
       <div class="filter-field"><label>Classe</label><div id="lancFilterClasseMount"></div></div>
+      <label class="toolbar-check" title="Ajustes de estoque (feitos pelo botão &quot;Ajustar estoque&quot;, destino &quot;Atualização&quot;) ficam escondidos daqui por padrão pra não parecerem uma saída/entrada real. Marque pra ver e conferir esses ajustes."><input type="checkbox" id="lancMostrarAjustes"> Mostrar ajustes de estoque</label>
       <div class="filter-bar-actions">
         <button type="button" class="btn" id="lancClearFiltersBtn">Limpar filtros</button>
         <button type="button" class="btn btn-primary" id="addEntryBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Novo lançamento</span></button>
@@ -1164,7 +1165,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 
 <dialog id="ajusteEstoqueDialog">
   <form method="dialog" id="ajusteEstoqueForm">
-    <div class="dialog-head"><div><h3>Ajustar estoque</h3><p>Corrige o estoque do sistema pra bater com a contagem física — o painel calcula a diferença sozinho e lança automaticamente uma entrada ou saída de ajuste (destino "Atualização"), mantendo o histórico.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
+    <div class="dialog-head"><div><h3>Ajustar estoque</h3><p>Corrige o estoque do sistema pra bater com a contagem física — o painel calcula a diferença sozinho e lança automaticamente uma entrada ou saída de ajuste (destino "Atualização"), mantendo o histórico. Esse ajuste fica escondido por padrão na aba Lançamentos (pra ninguém confundir com uma saída/entrada real) — use o checkbox "Mostrar ajustes de estoque" lá pra conferir.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
     <div class="dialog-body">
       <p class="dialog-alert" id="ajusteEstoqueAlert" hidden></p>
       <p class="field-help" id="ajusteEstoqueInfo" style="margin:-4px 0 14px"></p>
@@ -1305,7 +1306,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
         <li>Destino, Classe (onde foi usado), Ciclo e NFE são campos livres, só de organização e filtro.</li>
         <li>Salve — o estoque e o valor total da ficha são recalculados na hora, em ordem cronológica pela Data.</li>
       </ol>
-      <p><strong>Ajustar estoque</strong> (botão na linha do produto, na aba Cadastro): use quando a contagem física não bater com o sistema. Informe a quantidade contada — o painel calcula a diferença sozinho e lança automaticamente uma entrada ou saída com destino "Atualização".</p>
+      <p><strong>Ajustar estoque</strong> (botão na linha do produto, na aba Cadastro): use quando a contagem física não bater com o sistema. Informe a quantidade contada — o painel calcula a diferença sozinho e lança automaticamente uma entrada ou saída com destino "Atualização". Esse lançamento de ajuste fica escondido por padrão na aba Lançamentos, pra ninguém confundir com uma saída/entrada real; o checkbox "Mostrar ajustes de estoque" na Lançamentos revela quando precisar conferir.</p>
     </div>
 
     <div class="dash-panel help-section" id="help-fornecedores">
@@ -1347,7 +1348,8 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 
     <div class="dash-panel help-section" id="help-relatorio">
       <h4>Relatório<small>estoque e movimentação de um período, pra imprimir</small></h4>
-      <p>Mostra o estoque atual e as saídas de um período — semana atual, mês atual, ou uma janela de N dias. "Agrupar por nome" soma todas as fichas do mesmo produto numa linha só.</p>
+      <p>Mostra o estoque e as saídas/entradas de um período — semana atual, mês atual, uma janela de N dias, ou <strong>Personalizado</strong> (escolher "De" e "Até" à mão). "Agrupar por nome" soma todas as fichas do mesmo produto numa linha só.</p>
+      <p>Filtro <strong>Período</strong> — vale pro relatório inteiro: as tabelas de Entradas/Saídas mostram os lançamentos dentro do intervalo, e a tabela de <strong>Estoque</strong> passa a mostrar o saldo reconstruído no dia final do período (não mais sempre o saldo de hoje) — é assim que dá pra ver "como estava o estoque" num intervalo passado, ex.: escolher Personalizado de 03/08 até 08/08 mostra o estoque como ele estava em 08/08, com o saldo do início do período (02/08) ao lado pra comparação. Como os presets (semana/mês/N dias) sempre terminam hoje, neles o Estoque continua mostrando o saldo atual.</p>
       <p>Dois jeitos de gerar: <strong>"Imprimir / Gerar PDF"</strong> é pensado pra folha A4 — a tabela se ajusta (fonte menor) pra caber inteira numa página só, mesmo com bastante produto. <strong>"Abrir pra leitura na tela"</strong> abre o mesmo relatório numa aba nova, contínuo (sem cortar em páginas) e com fonte no tamanho normal — melhor pra só consultar no computador, sem a preocupação de caber numa folha.</p>
       <p>Filtro <strong>Classe</strong> — restringe tanto o "Estoque atual" quanto as "Saídas" só à(s) classe(s) marcada(s) (ex.: só "Bobinas"). Filtro <strong>Status</strong> — vale só pro "Estoque atual" (uma saída já lançada é do produto, não tem status próprio).</p>
     </div>
@@ -3123,6 +3125,12 @@ let cadastroGroupSort={col:'nome',dir:1}, cadastroGroupByName=false;
 let cadastroMostrarFiscal=false;
 let lancSort={col:'data',dir:-1}, lancFilters={search:'',destino:null,classe:null,produtoId:'',tipo:'',nome:null}, lancPage=0;
 const LANC_PAGE_SIZE=50;
+/* Ajuste de estoque (dialog "Ajustar estoque") lança automaticamente uma
+   entrada/saída com destino "Atualização" pra corrigir o saldo. Isso não é
+   uma movimentação real do dia a dia — some por padrão da lista de
+   Lançamentos pra ninguém confundir com uma saída/entrada de verdade;
+   o checkbox "Mostrar ajustes de estoque" revela quando precisar conferir. */
+let lancMostrarAjustes=false;
 let fornecedorFilters={nome:'',nomeFantasia:'',cnpj:'',cpf:'',telefone:'',email:'',contato:'',endereco:'',duplicados:false};
 
 function statusChip(status){return `<span class="status-chip status-${STATUS_CLASS[status]||'info'}">${esc(status)}</span>`}
@@ -3788,7 +3796,11 @@ function renderLancamentos(){
   document.getElementById('lancFilterClasseMount').innerHTML=multiselectHtml('lancFilterClasse','Todas as classes',classeOptions,lancFilters.classe);
   wireMultiselect('lancFilterClasse',classeOptions,()=>lancFilters.classe,v=>lancFilters.classe=v,()=>{lancPage=0;renderLancamentos()});
 
+  document.getElementById('lancMostrarAjustes').checked=lancMostrarAjustes;
+  document.getElementById('lancMostrarAjustes').onchange=e=>{lancMostrarAjustes=e.target.checked;renderLancamentos()};
+
   let list=entriesOf(locId);
+  if(!lancMostrarAjustes&&!(lancFilters.destino&&lancFilters.destino.has('Atualização')))list=list.filter(e=>e.destino!=='Atualização');
   if(lancFilters.produtoId)list=list.filter(e=>e.produtoId===lancFilters.produtoId);
   if(lancFilters.tipo==='entrada')list=list.filter(e=>Number(e.entrada)>0);
   if(lancFilters.tipo==='saida')list=list.filter(e=>Number(e.saida)>0);
@@ -3823,6 +3835,7 @@ function renderLancamentos(){
   list=list.slice().sort((a,b)=>{
     let av=a[col],bv=b[col];
     if(col==='produto'){const pa=locState(locId).products[a.produtoId],pb=locState(locId).products[b.produtoId];av=pa?pa.nome:'';bv=pb?pb.nome:''}
+    if(col==='estoqueResultante'){const pa=locState(locId).products[a.produtoId],pb=locState(locId).products[b.produtoId];av=pa?pa.estoque:a.estoqueResultante;bv=pb?pb.estoque:b.estoqueResultante}
     if(typeof av==='number'||typeof bv==='number')return ((Number(av)||0)-(Number(bv)||0))*dir;
     return String(av||'').localeCompare(String(bv||''),'pt-BR')*dir;
   });
@@ -3834,9 +3847,15 @@ function renderLancamentos(){
   }else{chip.hidden=true;chip.innerHTML=''}
 
   const cols=[['data','Data'],['fornecedor','Fornecedor'],['nfeId','NFE/ID'],['dataFaturamento','Fatura NF'],['produto','ID do Produto'],['entrada','Entrada'],
-    ['saida','Saída'],['estoqueResultante','Estoque'],['valorUnitario','Valor Unit.'],['valorTotal','Valor Total'],['destino','Destino'],
+    ['saida','Saída'],['estoqueResultante','Estoque atual'],['valorUnitario','Valor Unit.'],['valorTotal','Valor Total'],['destino','Destino'],
     ['classe','Classe'],['ciclo','Ciclo']];
-  const thead=`<tr>${cols.map(([key,label])=>`<th data-sort="${key}">${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
+  /* Mostra o estoque ATUAL do produto (product.estoque), não o saldo
+     histórico de só este lançamento (entry.estoqueResultante) — senão,
+     com um ajuste de estoque lançado depois (agora escondido por padrão
+     da lista, ver lancMostrarAjustes) o último lançamento visível de um
+     produto ficava mostrando um saldo antigo, incoerente com o Cadastro. */
+  const colTitles={estoqueResultante:'Estoque total do produto agora (já contando ajustes) — não é o saldo específico deste lançamento.'};
+  const thead=`<tr>${cols.map(([key,label])=>`<th data-sort="${key}"${colTitles[key]?` title="${esc(colTitles[key])}"`:''}>${label}${col===key?(dir===1?' ▲':' ▼'):''}</th>`).join('')}<th></th></tr>`;
 
   const totalCount=list.length;
   const totalPages=Math.max(1,Math.ceil(totalCount/LANC_PAGE_SIZE));
@@ -3865,7 +3884,7 @@ function renderLancamentos(){
       <td>${e.dataFaturamento?fmtDate(e.dataFaturamento):'—'}</td>
       <td class="col-strong" title="${esc(p?p.nome:'(produto removido)')}">${esc(p?p.nome:'(produto removido)')}${p?`<span data-presence-produto="${p.id}"></span>`:''}</td>
       <td class="col-num">${e.entrada?fmtNum(e.entrada):''}</td><td class="col-num">${e.saida?fmtNum(e.saida):''}</td>
-      <td class="col-num">${fmtNum(e.estoqueResultante)}</td><td class="col-num">${fmtMoney(e.valorUnitario)}</td><td class="col-num">${fmtMoney(e.valorTotal)}</td>
+      <td class="col-num">${fmtNum(p?p.estoque:e.estoqueResultante)}</td><td class="col-num">${fmtMoney(e.valorUnitario)}</td><td class="col-num">${fmtMoney(e.valorTotal)}</td>
       <td title="${esc(e.destino)}">${esc(e.destino)}</td><td title="${esc(e.classe)}">${esc(e.classe)}</td><td title="${esc(e.ciclo)}">${esc(e.ciclo)}</td>
       <td class="col-actions">
         <button type="button" class="mini-edit" data-edit-entry="${e.id}" title="Editar">${ICON_EDIT}</button>
@@ -4558,18 +4577,27 @@ let relatorioFiltroClasse=null;
 let relatorioFiltroNome=null;
 let relatorioMostrarDestino=false;
 let relatorioFiltroSecao=null;
+/* Datas do período "Personalizado" (só usadas quando relatorioPeriodo
+   é 'personalizado') — de/até escolhidos à mão, pra ver um intervalo que
+   nenhum preset cobre (ex.: 03/08 até 08/08). */
+let relatorioCustomStart=null, relatorioCustomEnd=null;
 const RELATORIO_SECAO_OPTIONS=['Estoque','Entradas','Saídas'];
 const RELATORIO_PERIODO_OPTIONS=[
   {value:'semana',label:'Esta semana'},
   {value:'7',label:'Últimos 7 dias'},
   {value:'15',label:'Últimos 15 dias'},
   {value:'30',label:'Últimos 30 dias'},
-  {value:'mes',label:'Este mês'}
+  {value:'mes',label:'Este mês'},
+  {value:'personalizado',label:'Personalizado (escolher datas)'}
 ];
 function relatorioPeriodoOptionsHtml(){
   return RELATORIO_PERIODO_OPTIONS.map(o=>`<option value="${o.value}"${relatorioPeriodo===o.value?' selected':''}>${o.label}</option>`).join('');
 }
 function relatorioPeriodoLabel(){
+  if(relatorioPeriodo==='personalizado'){
+    const {start,end}=relatorioPeriodoRange('personalizado');
+    return `${fmtDate(start)} a ${fmtDate(end)}`;
+  }
   return (RELATORIO_PERIODO_OPTIONS.find(o=>o.value===relatorioPeriodo)||{}).label||'';
 }
 /* "Esta semana" = de segunda-feira até hoje (semana em curso); "Este mês" =
@@ -4581,10 +4609,18 @@ function inicioSemanaIso(iso){
   d.setDate(d.getDate()-diff);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+/* Mesmo período vale tanto pras tabelas de Entradas/Saídas quanto pro
+   "Estoque" (que passa a mostrar o saldo reconstruído no dia final do
+   período, em vez do saldo de hoje sempre) — um controle só, em vez de
+   um pro estoque e outro pras movimentações. */
 function relatorioPeriodoRange(periodo){
   const end=todayIso();
   if(periodo==='semana')return{start:inicioSemanaIso(end),end};
   if(periodo==='mes')return{start:end.slice(0,8)+'01',end};
+  if(periodo==='personalizado'){
+    const start=relatorioCustomStart||end,customEnd=relatorioCustomEnd||end;
+    return start<=customEnd?{start,end:customEnd}:{start:customEnd,end:start};
+  }
   return{start:addDays(end,-((Number(periodo)||7)-1)),end};
 }
 /* Média "real" de entrada/saída por semana: soma o valor movimentado das
@@ -4633,6 +4669,21 @@ function relatorioEstoqueFiltrado(locId){
   if(relatorioFiltroNome)products=products.filter(p=>relatorioFiltroNome.has(p.nome));
   return products;
 }
+/* Reconstrói o saldo (qtd. e valor) de um produto olhando só os lançamentos
+   até dataRef (inclusive), na mesma ordem cronológica do recalcProduct —
+   é como "voltar no tempo" pro saldo que o produto tinha naquele dia,
+   sem precisar guardar histórico à parte. */
+function estoqueEmData(locId,productId,dataRef){
+  const entries=entriesForProduct(locId,productId)
+    .filter(e=>String(e.data||'')<=dataRef)
+    .sort((a,b)=>String(a.data||'').localeCompare(String(b.data||''))||String(a.createdAt).localeCompare(String(b.createdAt)));
+  let saldo=0,valorSaldo=0;
+  entries.forEach(e=>{
+    saldo+=(Number(e.entrada)||0)-(Number(e.saida)||0);
+    valorSaldo+=(Number(e.entrada)||0)>0?(Number(e.valorTotal)||0):-(Number(e.valorTotal)||0);
+  });
+  return{estoque:round2(saldo),valorTotal:round2(valorSaldo)};
+}
 function buildRelatorioHtml(locId){
   const agrupar=relatorioGroupByName;
   const products=relatorioEstoqueFiltrado(locId);
@@ -4655,7 +4706,20 @@ function buildRelatorioHtml(locId){
     if(relatorioFiltroNome&&(!p||!relatorioFiltroNome.has(p.nome)))return false;
     return true;
   });
-  const valorTotalGeral=products.reduce((s,p)=>s+(Number(p.valorTotal)||0),0);
+  /* "Estoque" sempre reflete o saldo no dia FINAL do período escolhido
+     acima (reconstruído a partir dos lançamentos até essa data, via
+     estoqueEmData) — como todo preset termina hoje, isso bate com o
+     estoque atual no caso comum; escolhendo "Personalizado" com um
+     período no passado (ex.: 03/08 até 08/08), passa a responder "como
+     estava o estoque naquele período" (saldo em 08/08). */
+  const valoresFechamento=new Map(products.map(p=>[p.id,estoqueEmData(locId,p.id,end)]));
+  const valoresDe=p=>valoresFechamento.get(p.id)||{estoque:0,valorTotal:0};
+  const valorTotalGeral=products.reduce((s,p)=>s+valoresDe(p).valorTotal,0);
+  /* Saldo de abertura (véspera do início do período) — só contexto no
+     resumo, pra mostrar quanto o estoque total mudou dentro do período;
+     não entra na tabela produto a produto. */
+  const dataAbertura=addDays(start,-1);
+  const valorTotalAbertura=products.reduce((s,p)=>s+estoqueEmData(locId,p.id,dataAbertura).valorTotal,0);
   const qtdProdutosSairam=new Set(saidas.map(e=>e.produtoId)).size;
   const valorSaidaTotal=saidas.reduce((s,e)=>s+(Number(e.valorTotal)||0),0);
   const qtdProdutosEntraram=new Set(entradas.map(e=>e.produtoId)).size;
@@ -4666,8 +4730,9 @@ function buildRelatorioHtml(locId){
   if(agrupar){
     const grupos={};
     products.forEach(p=>{
+      const v=valoresDe(p);
       const g=grupos[p.nome]=grupos[p.nome]||{nome:p.nome,estoque:0,valorTotal:0,lotes:0,classes:new Set(),fornecedores:new Set(),tipos:new Set()};
-      g.estoque+=Number(p.estoque)||0;g.valorTotal+=Number(p.valorTotal)||0;g.lotes++;
+      g.estoque+=v.estoque;g.valorTotal+=v.valorTotal;g.lotes++;
       if(p.classe)g.classes.add(p.classe);
       if(p.fornecedor)g.fornecedores.add(p.fornecedor);
       if(p.tipo)g.tipos.add(p.tipo);
@@ -4681,7 +4746,7 @@ function buildRelatorioHtml(locId){
     const list=products.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
     totalItensEstoque=list.length;
     estoqueHead='<tr><th>Produto</th><th>Classe</th><th>Fornecedor</th><th>Tipo</th><th class="num">Estoque</th><th class="num">Valor Unit.</th><th class="num">Valor Total</th></tr>';
-    rowsEstoque=list.map(p=>`<tr><td>${esc(p.nome)}</td><td>${esc(p.classe)}</td><td>${esc(p.fornecedor)}</td><td>${esc(p.tipo)}</td><td class="num">${fmtNum(p.estoque)}</td><td class="num">${fmtMoney(p.valorUnitario)}</td><td class="num">${fmtMoney(p.valorTotal)}</td></tr>`).join('')
+    rowsEstoque=list.map(p=>{const v=valoresDe(p);return `<tr><td>${esc(p.nome)}</td><td>${esc(p.classe)}</td><td>${esc(p.fornecedor)}</td><td>${esc(p.tipo)}</td><td class="num">${fmtNum(v.estoque)}</td><td class="num">${fmtMoney(p.valorUnitario)}</td><td class="num">${fmtMoney(v.valorTotal)}</td></tr>`}).join('')
       ||'<tr><td colspan="7">Nenhum produto cadastrado.</td></tr>';
   }
 
@@ -4762,11 +4827,15 @@ function buildRelatorioHtml(locId){
   const partesSecao=[mostrarEstoque&&'Estoque',mostrarEntrada&&'Entradas',mostrarSaida&&'Saídas'].filter(Boolean);
   const tituloSecao=partesSecao.length?`Relatório de ${partesSecao.join(', ').replace(/, ([^,]*)$/,' e $1')}`:'Relatório (nenhum conteúdo selecionado)';
   const metaMovimento=(mostrarEntrada||mostrarSaida)?` · Movimentações: ${esc(relatorioPeriodoLabel())} (${fmtDate(start)} a ${fmtDate(end)})`:'';
+  const estoqueHistorico=end!==todayIso();
+  const metaEstoque=mostrarEstoque&&estoqueHistorico?` · Estoque em: ${esc(fmtDate(end))}`:'';
+  const tituloEstoque=estoqueHistorico?`Estoque em ${esc(fmtDate(end))}`:'Estoque atual';
   const estoqueSecaoHtml=mostrarEstoque?`<div class="print-section-estoque">
-      <h2>Estoque atual${relatorioFiltroStatus?` — status: ${esc([...relatorioFiltroStatus].join(', ')||'nenhum selecionado')}`:''}${relatorioFiltroClasse?` — classe: ${esc([...relatorioFiltroClasse].join(', ')||'nenhuma selecionada')}`:''}</h2>
+      <h2>${tituloEstoque}${relatorioFiltroStatus?` — status: ${esc([...relatorioFiltroStatus].join(', ')||'nenhum selecionado')}`:''}${relatorioFiltroClasse?` — classe: ${esc([...relatorioFiltroClasse].join(', ')||'nenhuma selecionada')}`:''}</h2>
       <div class="print-summary">
         <div><span>Produtos no estoque</span><strong>${fmtNum(products.length)}</strong></div>
         <div><span>Valor total em estoque</span><strong>${fmtMoney(valorTotalGeral)}</strong></div>
+        ${estoqueHistorico?`<div><span>Estoque no início do período (${esc(fmtDate(dataAbertura))})</span><strong>${fmtMoney(valorTotalAbertura)}</strong></div>`:''}
       </div>
       <table class="${classeCompactaEstoque(totalItensEstoque)}"><thead>${estoqueHead}</thead><tbody>${rowsEstoque}</tbody></table>
     </div>`:'';
@@ -4791,7 +4860,7 @@ function buildRelatorioHtml(locId){
       <img class="print-logo" src="icon.png" alt="">
       <div>
         <h1>${esc(tituloSecao)} — ${esc(locLabel(locId))}</h1>
-        <p class="print-meta">Gerado em ${fmtStamp(new Date().toISOString())}${metaMovimento}${agrupar?' · agrupado por nome':''}</p>
+        <p class="print-meta">Gerado em ${fmtStamp(new Date().toISOString())}${metaEstoque}${metaMovimento}${agrupar?' · agrupado por nome':''}</p>
       </div>
     </div>
     ${estoqueSecaoHtml}
@@ -4812,7 +4881,10 @@ function renderRelatorio(){
       <div class="filter-field" style="min-width:170px"><label>Produto</label><div id="relatorioFilterNomeMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Classe</label><div id="relatorioFilterClasseMount"></div></div>
       <div class="filter-field" style="min-width:170px"><label>Status (estoque)</label><div id="relatorioFilterStatusMount"></div></div>
-      <div class="filter-field" style="min-width:170px"><label for="relatorioPeriodo" title="Período considerado nas tabelas de entradas e saídas — o estoque atual não usa esse filtro.">Período das movimentações</label><select id="relatorioPeriodo">${relatorioPeriodoOptionsHtml()}</select></div>
+      <div class="filter-field" style="min-width:170px"><label for="relatorioPeriodo" title="Vale tanto pras tabelas de Entradas/Saídas quanto pro Estoque — que passa a mostrar o saldo reconstruído no dia final do período, em vez do saldo de hoje. Escolha &quot;Personalizado&quot; pra digitar as datas.">Período</label><select id="relatorioPeriodo">${relatorioPeriodoOptionsHtml()}</select></div>
+      ${relatorioPeriodo==='personalizado'?`
+      <div class="filter-field" style="min-width:150px"><label for="relatorioCustomStart">De</label><input type="date" id="relatorioCustomStart" value="${relatorioCustomStart||''}"></div>
+      <div class="filter-field" style="min-width:150px"><label for="relatorioCustomEnd">Até</label><input type="date" id="relatorioCustomEnd" value="${relatorioCustomEnd||''}"></div>`:''}
       <button type="button" class="btn" id="relatorioAbrirTelaBtn" title="Abre numa aba nova, num tamanho confortável pra ler na tela — sem cortar em folhas A4 nem espremer a fonte."><span>Abrir pra leitura na tela</span></button>
       <button type="button" class="btn btn-primary" id="relatorioImprimirBtn"><span>Imprimir / Gerar PDF</span></button>
     </div>
@@ -4827,7 +4899,18 @@ function renderRelatorio(){
   wireMultiselect('relatorioFilterClasse',classeOptions,()=>relatorioFiltroClasse,v=>relatorioFiltroClasse=v,renderRelatorio);
   document.getElementById('relatorioFilterStatusMount').innerHTML=multiselectHtml('relatorioFilterStatus','Todos os status',STATUS_ALL,relatorioFiltroStatus);
   wireMultiselect('relatorioFilterStatus',STATUS_ALL,()=>relatorioFiltroStatus,v=>relatorioFiltroStatus=v,renderRelatorio);
-  document.getElementById('relatorioPeriodo').onchange=e=>{relatorioPeriodo=e.target.value;renderRelatorio()};
+  document.getElementById('relatorioPeriodo').onchange=e=>{
+    relatorioPeriodo=e.target.value;
+    if(relatorioPeriodo==='personalizado'){
+      if(!relatorioCustomStart)relatorioCustomStart=addDays(todayIso(),-6);
+      if(!relatorioCustomEnd)relatorioCustomEnd=todayIso();
+    }
+    renderRelatorio();
+  };
+  if(relatorioPeriodo==='personalizado'){
+    document.getElementById('relatorioCustomStart').onchange=e=>{relatorioCustomStart=e.target.value||null;renderRelatorio()};
+    document.getElementById('relatorioCustomEnd').onchange=e=>{relatorioCustomEnd=e.target.value||null;renderRelatorio()};
+  }
   document.getElementById('relatorioImprimirBtn').onclick=()=>document.getElementById('relatorioImprimirDialog').showModal();
   document.getElementById('relatorioImprimirA4Btn').onclick=()=>imprimirRelatorio(false);
   document.getElementById('relatorioImprimirUnicaBtn').onclick=()=>imprimirRelatorio(true);
