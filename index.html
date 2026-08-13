@@ -4737,13 +4737,13 @@ function buildRelatorioHtml(locId){
       if(p.fornecedor)g.fornecedores.add(p.fornecedor);
       if(p.tipo)g.tipos.add(p.tipo);
     });
-    const list=Object.values(grupos).sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    const list=Object.values(grupos).sort((a,b)=>b.estoque-a.estoque||a.nome.localeCompare(b.nome,'pt-BR'));
     totalItensEstoque=list.length;
     estoqueHead='<tr><th>Produto</th><th class="num">Lotes</th><th>Classe</th><th>Fornecedor(es)</th><th>Tipo</th><th class="num">Estoque total</th><th class="num">Valor Total</th></tr>';
     rowsEstoque=list.map(g=>`<tr><td>${esc(g.nome)}</td><td class="num">${fmtNum(g.lotes)}</td><td>${esc(labelDeSet(g.classes))}</td><td>${esc(labelDeSet(g.fornecedores))}</td><td>${esc(labelDeSet(g.tipos))}</td><td class="num">${fmtNum(g.estoque)}</td><td class="num">${fmtMoney(g.valorTotal)}</td></tr>`).join('')
       ||'<tr><td colspan="7">Nenhum produto cadastrado.</td></tr>';
   }else{
-    const list=products.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+    const list=products.slice().sort((a,b)=>valoresDe(b).estoque-valoresDe(a).estoque||a.nome.localeCompare(b.nome,'pt-BR'));
     totalItensEstoque=list.length;
     estoqueHead='<tr><th>Produto</th><th>Classe</th><th>Fornecedor</th><th>Tipo</th><th class="num">Estoque</th><th class="num">Valor Unit.</th><th class="num">Valor Total</th></tr>';
     rowsEstoque=list.map(p=>{const v=valoresDe(p);return `<tr><td>${esc(p.nome)}</td><td>${esc(p.classe)}</td><td>${esc(p.fornecedor)}</td><td>${esc(p.tipo)}</td><td class="num">${fmtNum(v.estoque)}</td><td class="num">${fmtMoney(p.valorUnitario)}</td><td class="num">${fmtMoney(v.valorTotal)}</td></tr>`}).join('')
