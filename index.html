@@ -56,10 +56,18 @@
    (mesma especificidade de qualquer seletor de classe, mas com !important)
    garante que hidden sempre esconde de verdade, não importa a classe. */
 [hidden]{display:none!important}
-html{background:var(--page)}
+/* overscroll-behavior:none trava o "elástico"/bounce de rolar além do topo
+   ou fim da página (comum em touchpad/roda de mouse no Windows, via Edge
+   WebView2) — sem isso, rolar rápido além do limite da página (fácil de
+   acontecer numa tabela bem alta, como a do Relatório) empurra o conteúdo
+   inteiro momentaneamente além de onde ele deveria parar, revelando o que
+   tiver por trás da janela (aqui, a barra de título do app) por baixo do
+   próprio conteúdo da página — não é um bug de z-index/sticky, é esse
+   "estica e volta" do próprio navegador. */
+html{background:var(--page);overscroll-behavior:none}
 body{margin:0;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15px;letter-spacing:-.006em;
   background:radial-gradient(circle at 0 -10%,rgba(18,165,101,.08),transparent 34rem),var(--page);
-  min-height:100vh;transition:background .2s,color .2s}
+  min-height:100vh;transition:background .2s,color .2s;overscroll-behavior:none}
 html.dialog-open,body.dialog-open{overflow:hidden}
 button,input,select{font:inherit;color:inherit}
 ::selection{background:var(--brand-soft-strong)}
@@ -145,7 +153,12 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
    sem rolar de volta pro topo. É o ÚNICO position:sticky que sobra no
    painel agora — o cabeçalho de coluna das tabelas não usa mais sticky
    nenhum (ver comentário grande em .table-scroll), então não tem mais
-   um segundo sticky aninhado disputando a mesma rolagem com este aqui. */
+   um segundo sticky aninhado disputando a mesma rolagem com este aqui.
+   Histórico (não repetir): chegamos a testar transform:translateZ(0) aqui
+   pra tentar forçar composição em GPU — piorou o problema (o cabeçalho
+   parava de grudar de vez e ficava flutuando solto no meio do conteúdo
+   depois de rolar) porque transform muda como o sticky calcula o próprio
+   deslocamento; removido. */
 .sticky-head{position:sticky;top:12px;z-index:45;background:var(--page)}
 
 /* Topbar */
@@ -392,13 +405,19 @@ body.auth-locked{background:linear-gradient(135deg,#eef1fb 0%,#eafaf3 100%)}
 /* Compacta fonte/padding/largura das colunas em janelas mais estreitas —
    .table-body-wrap já rola sozinho na horizontal sem afetar o resto da
    página (ver comentário em .table-scroll acima), mas quanto menos
-   precisar rolar pra ver as colunas da direita, melhor. Ajuda
-   principalmente em telas com escala do Windows fracionária (125%/150%),
-   que reduzem a largura útil da janela em pixels CSS pro mesmo monitor
-   físico. Os dois breakpoints abaixo foram escolhidos pra bater com a
-   largura efetiva de monitores comuns (1920×1080 e 1366×768) nessas
-   escalas, não é um breakpoint "de dispositivo" qualquer. */
-@media(max-width:1600px){
+   precisar rolar pra ver as colunas da direita, melhor. Esse primeiro
+   degrau (11.8px) já nasceu pensado pra caber SEM rolagem horizontal na
+   largura efetiva de um 1920×1080 com escala do Windows fracionária
+   (125%/150% → ~1536/~1280px em pixels CSS) — o limiar de 1920px aqui
+   (em vez de 1600px) estende esse mesmo degrau, já testado e comprovado
+   pra caber em menos espaço, também pro caso mais comum de todos: o mesmo
+   monitor 1920×1080 na escala PADRÃO (100%, sem fração nenhuma) — nesse
+   caso o pixel CSS bate 1:1 com o físico, e sem esse limiar mais largo a
+   tabela usava a fonte/padding "cheios" (os maiores de todos, pensados só
+   pra telas ainda maiores) bem na resolução mais comum do mercado,
+   empurrando tabelas com muitas colunas (Cadastro, Lançamentos) pra
+   rolagem horizontal à toa. */
+@media(max-width:1920px){
   .prod-table{font-size:11.8px}
   .prod-table thead th{padding:9px 9px}
   .prod-table tbody td{padding:8px 9px;max-width:260px}
@@ -658,7 +677,7 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 #fornecedorDialog{width:min(860px,calc(100% - 28px))}
 #usersDialog{width:min(820px,calc(100% - 28px))}
 #onlineDialog{width:min(820px,calc(100% - 28px))}
-#logDialog{width:min(720px,calc(100% - 28px))}
+#logDialog{width:min(880px,calc(100% - 28px))}
 #helpDialog{width:min(920px,calc(100% - 28px))}
 /* Sangra até a borda do diálogo (margin negativo cancelando o padding do
    dialog-body) pra o fundo cobrir a largura inteira quando gruda no topo
@@ -801,6 +820,24 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 /* Compras */
 .toolbar-check{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:650;color:var(--ink-2);white-space:nowrap}
 .toolbar-check input{accent-color:var(--brand);width:16px;height:16px}
+
+/* Conteúdo de uma aba (na TELA — a impressão do Relatório usa #printArea
+   à parte) que rola dentro da própria caixa, igual .table-body-wrap das
+   tabelas, em vez de deixar a PÁGINA inteira rolar por baixo do cabeçalho
+   sticky. Usada nas abas onde o conteúdo cresce sem limite (Relatório —
+   a tabela impressa — e Resumo — vários painéis empilhados), que sem essa
+   caixa obrigam o scroll nativo da página inteira — e é exatamente isso
+   que expõe um bug de pintura do Chrome/Edge onde um "fantasma" do
+   conteúdo pisca por cima do cabeçalho sticky durante a rolagem rápida
+   (tentamos corrigir só com CSS — GPU layer no cabeçalho e no
+   container-pai — sem sucesso; o problema é a página inteira rolando, não
+   um detalhe de composição). Com a rolagem contida aqui, a página em si
+   não precisa mais rolar pra ver o conteúdo inteiro, então o cabeçalho
+   sticky nunca compete com uma rolagem tão grande — mesmo raciocínio (e
+   mesma fonte do bug) por trás de .table-scroll, ver comentário grande
+   lá. Altura máxima calculada em runtime por fitViewScrollHeight (JS),
+   igual fitTableHeight faz pras tabelas. */
+.view-scroll{overflow-y:auto;overflow-x:hidden}
 
 /* Relatório / impressão */
 .print-doc{background:#fff;color:#111;padding:20px 22px;border-radius:14px;font-family:Arial,Helvetica,sans-serif}
@@ -1418,7 +1455,16 @@ dialog::backdrop{background:rgba(4,10,7,.55);backdrop-filter:blur(5px)}
 
 <dialog id="logDialog">
   <div class="dialog-head"><div><h3>Histórico de alterações</h3><p>Últimas ações feitas no painel, com usuário e horário.</p></div><button type="button" class="dialog-close" onclick="this.closest('dialog').close()" aria-label="Fechar">×</button></div>
-  <div class="dialog-body"><div class="log-list" id="logList"></div></div>
+  <div class="dialog-body">
+    <div class="filter-bar" style="margin-bottom:14px">
+      <div class="filter-field"><label for="logSearch" title="Busca dentro do texto de cada ação — inclui nome de produto, classe e demais detalhes mencionados na mensagem.">Buscar (produto, classe...)</label><input type="search" id="logSearch" placeholder="Ex.: nome do produto ou classe"></div>
+      <div class="filter-field"><label>Usuário</label><div id="logFilterUsuarioMount"></div></div>
+      <div class="filter-field"><label for="logDataInicio">De</label><input type="date" id="logDataInicio"></div>
+      <div class="filter-field"><label for="logDataFim">Até</label><input type="date" id="logDataFim"></div>
+      <div class="filter-bar-actions"><button type="button" class="btn" id="logClearFiltersBtn">Limpar filtros</button></div>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </div>
   <div class="dialog-foot"><button type="button" class="btn btn-primary" onclick="this.closest('dialog').close()">Fechar</button></div>
 </dialog>
 
@@ -3243,6 +3289,19 @@ function fitTableHeight(scrollRoot){
   const disponivel=window.innerHeight-top-22; // 22 = padding-bottom do .shell (16px) + uma folguinha de 6px
   bodyWrap.style.maxHeight=Math.max(180,disponivel)+'px';
 }
+/* Mesma ideia de fitTableHeight, só que pra caixa de rolagem própria de
+   uma aba inteira (.view-scroll, ver renderRelatorio/renderResumo) — o
+   espaço disponível é medido a partir do topo da PRÓPRIA caixa (que já
+   fica logo abaixo da toolbar/filtros daquela aba), então a altura do
+   cabeçalho sticky acima já sai descontada sozinha, sem cálculo à parte. */
+function fitViewScrollHeight(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const top=el.getBoundingClientRect().top;
+  if(!top&&!el.offsetParent)return; // escondido (aba inativa) — nada a fazer agora
+  const disponivel=window.innerHeight-top-22;
+  el.style.maxHeight=Math.max(180,disponivel)+'px';
+}
 /* Chama as três de uma vez, a partir de qualquer elemento dentro do
    .table-scroll (normalmente a tabela do corpo, que é a que os
    render*() já têm a mão). */
@@ -3288,7 +3347,7 @@ function renderAll(){
    duas ficariam desatualizadas até o próximo render de verdade. Reaplica
    as duas em todas as tabelas que já estão no DOM (as funções já ignoram
    sozinhas qualquer uma escondida/de aba inativa). */
-window.addEventListener('resize',()=>{clearTimeout(window._tableResizeT);window._tableResizeT=setTimeout(()=>{document.querySelectorAll('.table-scroll').forEach(root=>{lockSplitTableWidths(root);fitTableHeight(root)})},120)});
+window.addEventListener('resize',()=>{clearTimeout(window._tableResizeT);window._tableResizeT=setTimeout(()=>{document.querySelectorAll('.table-scroll').forEach(root=>{lockSplitTableWidths(root);fitTableHeight(root)});fitViewScrollHeight('relatorioScrollBox');fitViewScrollHeight('resumoScrollBox')},120)});
 /* O gráfico de entradas/saídas (Resumo) mede a largura do container em
    pixels pra desenhar o SVG (ver lineChartMovimentacaoHtml) — sem isso,
    redimensionar a janela deixaria o desenho "congelado" na largura de
@@ -3594,6 +3653,7 @@ function renderResumo(){
       <div class="filter-field"><label for="resumoMediaPeriodo" title="Período usado pra calcular a média semanal de uso a partir das saídas lançadas">Média calc.</label><select id="resumoMediaPeriodo">${mediaPeriodoOptionsHtml()}</select></div>
       <div class="filter-bar-actions"><button type="button" class="btn" id="resumoClearFiltersBtn">Limpar filtros</button></div>
     </div>
+    <div class="view-scroll" id="resumoScrollBox">
     <div class="kpi-row">
       <div class="kpi"><div class="kpi-icon">🚨</div><div class="kpi-copy"><span>Atrasados</span><strong>${fmtNum(atrasados.length)}</strong></div></div>
       <div class="kpi"><div class="kpi-icon">⚠️</div><div class="kpi-copy"><span>Urgente (7 dias)</span><strong>${fmtNum(urgentes.length)}</strong></div></div>
@@ -3621,7 +3681,9 @@ function renderResumo(){
         <tbody>${classeRowsHtml}</tbody>
         </table></div>
       </div>
+    </div>
     </div>`;
+  fitViewScrollHeight('resumoScrollBox');
   syncSplitTable('resumoClasseTable');
   document.getElementById('resumoFilterClasseMount').innerHTML=multiselectHtml('resumoFilterClasse','Todas as classes',classeOptions,resumoFilters.classe);
   wireMultiselect('resumoFilterClasse',classeOptions,()=>resumoFilters.classe,v=>resumoFilters.classe=v,renderResumo);
@@ -4888,7 +4950,8 @@ function renderRelatorio(){
       <button type="button" class="btn" id="relatorioAbrirTelaBtn" title="Abre numa aba nova, num tamanho confortável pra ler na tela — sem cortar em folhas A4 nem espremer a fonte."><span>Abrir pra leitura na tela</span></button>
       <button type="button" class="btn btn-primary" id="relatorioImprimirBtn"><span>Imprimir / Gerar PDF</span></button>
     </div>
-    ${buildRelatorioHtml(locId)}`;
+    <div class="view-scroll" id="relatorioScrollBox">${buildRelatorioHtml(locId)}</div>`;
+  fitViewScrollHeight('relatorioScrollBox');
   document.getElementById('relatorioAgruparNome').onchange=e=>{relatorioGroupByName=e.target.checked;renderRelatorio()};
   document.getElementById('relatorioMostrarDestino').onchange=e=>{relatorioMostrarDestino=e.target.checked;renderRelatorio()};
   document.getElementById('relatorioFilterSecaoMount').innerHTML=multiselectHtml('relatorioFilterSecao','Estoque + Entradas + Saídas',RELATORIO_SECAO_OPTIONS,relatorioFiltroSecao);
@@ -5681,12 +5744,24 @@ function openBulkSaidaDialog(){
   renderBulkSaidaList();
   document.getElementById('bulkSaidaDialog').showModal();
 }
+/* Mostra "— fica: X" ao lado do estoque disponível, atualizando em tempo
+   real conforme a quantidade é digitada (mesma ideia de
+   atualizarEstoqueDisponivelEntry, no lançamento avulso) — em vermelho se
+   a quantidade digitada passar do estoque disponível dessa ficha. */
+function bulkSaidaRestanteHtml(r){
+  const qtd=Number(r.qtd)||0;
+  if(qtd<=0)return'';
+  const unidade=r.tipo?' '+esc(r.tipo):'';
+  const restante=round2(r.estoque-qtd);
+  const estourou=qtd>r.estoque;
+  return ` — fica: <strong style="color:${estourou?'var(--critical)':'var(--brand-dark)'}">${fmtNum(restante)}${unidade}</strong>${estourou?' <span style="color:var(--critical);font-weight:800">saída maior que o disponível!</span>':''}`;
+}
 function renderBulkSaidaList(){
   const wrap=document.getElementById('bulkSaidaList'),empty=document.getElementById('bulkSaidaEmpty');
   empty.hidden=bulkSaidaRows.length>0;
   wrap.innerHTML=bulkSaidaRows.map((r,i)=>`
     <div class="bulk-saida-row">
-      <div class="bulk-saida-info"><strong>${esc(r.nome)}</strong><span>${r.nfeId?('NFE '+esc(r.nfeId)+' · '):''}Estoque disponível: ${fmtNum(r.estoque)}${r.tipo?' '+esc(r.tipo):''}</span></div>
+      <div class="bulk-saida-info"><strong>${esc(r.nome)}</strong><span>${r.nfeId?('NFE '+esc(r.nfeId)+' · '):''}Estoque disponível: ${fmtNum(r.estoque)}${r.tipo?' '+esc(r.tipo):''}<span data-bulk-restante="${i}">${bulkSaidaRestanteHtml(r)}</span></span></div>
       <div class="bulk-saida-classe"><input type="text" id="bulkSaidaClasseInput${i}" class="combo-input bulk-saida-classe-input" data-idx="${i}" autocomplete="off" maxlength="60" placeholder="Classe (onde foi usado)" value="${esc(r.classe||'')}"><div class="combo-panel" id="bulkSaidaClassePanel${i}" hidden></div></div>
       <div class="bulk-saida-qtd"><input type="text" inputmode="decimal" autocomplete="off" placeholder="Qtd. saída" class="bulk-saida-qtd-input" data-idx="${i}" value="${r.qtd?inputBR(r.qtd):''}"></div>
       <button type="button" class="mini-remove" data-remove-bulk="${i}" title="Remover">${ICON_TRASH}</button>
@@ -5704,7 +5779,13 @@ function renderBulkSaidaList(){
     document.getElementById('bulkSaidaClasseInput'+i).addEventListener('input',ev=>{bulkSaidaRows[i].classe=ev.target.value});
   });
   wrap.querySelectorAll('.bulk-saida-qtd-input').forEach(inp=>{
-    inp.oninput=()=>{brNumLiveInput(inp);bulkSaidaRows[Number(inp.dataset.idx)].qtd=numBR(inp.value)};
+    inp.oninput=()=>{
+      const idx=Number(inp.dataset.idx);
+      brNumLiveInput(inp);
+      bulkSaidaRows[idx].qtd=numBR(inp.value);
+      const restanteEl=wrap.querySelector(`[data-bulk-restante="${idx}"]`);
+      if(restanteEl)restanteEl.innerHTML=bulkSaidaRestanteHtml(bulkSaidaRows[idx]);
+    };
   });
   wrap.querySelectorAll('[data-remove-bulk]').forEach(btn=>btn.onclick=()=>{
     bulkSaidaRows.splice(Number(btn.dataset.removeBulk),1);
@@ -5877,16 +5958,65 @@ function salvarAjusteEstoque(){
 }
 
 /* ── Histórico ───────────────────────────────────────────────────── */
+/* logDataCache guarda o lote já buscado no Supabase — usuário e busca de
+   texto (produto/classe/mensagem) só filtram esse lote em mãos, sem
+   precisar consultar de novo a cada tecla. Data (De/Até) já muda QUAL
+   lote é buscado (refaz a consulta), já que um período específico pode
+   cair fora dos registros mais recentes cacheados. Sem filtro de data
+   nenhum, mantém o mesmo limite de sempre (200, os mais recentes); com
+   filtro de data, sobe o teto (1000) já que aí a pessoa quer ver tudo
+   daquele período, não só uma amostra recente. Não existe uma coluna de
+   "classe" ou "produto" separada na tabela de log (cada linha é uma frase
+   livre, ex.: 'editou o produto "X" — classe: "A" → "B"') — por isso a
+   busca por classe/produto é feita como texto dentro dessa frase, não
+   como um filtro de valor exato. */
+let logFiltroUsuario=null, logFiltroBusca='', logFiltroDataInicio='', logFiltroDataFim='', logDataCache=[];
 async function renderLogList(){
   const list=document.getElementById('logList');
   list.innerHTML='<span class="field-help">Carregando…</span>';
-  const {data,error}=await supabase.from('logs').select('*').order('t',{ascending:false}).limit(200);
+  let query=supabase.from('logs').select('*').order('t',{ascending:false});
+  if(logFiltroDataInicio)query=query.gte('t',logFiltroDataInicio+'T00:00:00');
+  if(logFiltroDataFim)query=query.lte('t',logFiltroDataFim+'T23:59:59.999');
+  query=query.limit((logFiltroDataInicio||logFiltroDataFim)?1000:200);
+  const {data,error}=await query;
   if(error){list.innerHTML='<span class="field-help">Não foi possível carregar o histórico.</span>';return}
+  logDataCache=data;
+  renderLogFiltro();
+}
+function renderLogFiltro(){
+  const mount=document.getElementById('logFilterUsuarioMount');
+  if(!mount)return;
+  const usuarios=[...new Set(logDataCache.map(e=>e.usuario).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  mount.innerHTML=multiselectHtml('logFilterUsuario','Todos os usuários',usuarios,logFiltroUsuario);
+  wireMultiselect('logFilterUsuario',usuarios,()=>logFiltroUsuario,v=>logFiltroUsuario=v,renderLogFiltro);
+  const list=document.getElementById('logList');
+  let data=logDataCache;
+  if(logFiltroUsuario)data=data.filter(e=>logFiltroUsuario.has(e.usuario));
+  if(logFiltroBusca){
+    const q=normalizeTexto(logFiltroBusca);
+    data=data.filter(e=>normalizeTexto(e.mensagem).includes(q)||normalizeTexto(e.usuario).includes(q));
+  }
   list.innerHTML=data.length
     ?data.map(e=>`<div class="log-row"><div class="log-meta"><strong>${esc(e.usuario)}</strong><span>${fmtStamp(e.t)}</span></div><div class="log-msg">${esc(e.mensagem)}</div></div>`).join('')
-    :'<span class="field-help">Nenhuma alteração registrada ainda.</span>';
+    :`<span class="field-help">${logDataCache.length?'Nenhuma alteração encontrada com esses filtros.':'Nenhuma alteração registrada ainda.'}</span>`;
 }
-function openLogDialog(){document.getElementById('logDialog').showModal();renderLogList()}
+function openLogDialog(){
+  document.getElementById('logDialog').showModal();
+  document.getElementById('logSearch').value=logFiltroBusca;
+  document.getElementById('logDataInicio').value=logFiltroDataInicio;
+  document.getElementById('logDataFim').value=logFiltroDataFim;
+  renderLogList();
+}
+document.getElementById('logSearch').oninput=e=>{logFiltroBusca=e.target.value;renderLogFiltro()};
+document.getElementById('logDataInicio').onchange=e=>{logFiltroDataInicio=e.target.value;renderLogList()};
+document.getElementById('logDataFim').onchange=e=>{logFiltroDataFim=e.target.value;renderLogList()};
+document.getElementById('logClearFiltersBtn').onclick=()=>{
+  logFiltroUsuario=null;logFiltroBusca='';logFiltroDataInicio='';logFiltroDataFim='';
+  document.getElementById('logSearch').value='';
+  document.getElementById('logDataInicio').value='';
+  document.getElementById('logDataFim').value='';
+  renderLogList();
+};
 
 function setCloudStatus(status,text,detail){
   const badge=document.getElementById('cloudBadge');
